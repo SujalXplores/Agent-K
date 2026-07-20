@@ -121,62 +121,62 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TELE-01 | TBD | Pending |
-| TELE-02 | TBD | Pending |
-| TELE-03 | TBD | Pending |
-| RAG-01 | TBD | Pending |
-| RAG-02 | TBD | Pending |
-| RAG-03 | TBD | Pending |
-| RAG-04 | TBD | Pending |
-| FLAG-01 | TBD | Pending |
-| FLAG-02 | TBD | Pending |
-| FLAG-03 | TBD | Pending |
-| FLAG-04 | TBD | Pending |
-| FLAG-05 | TBD | Pending |
-| FLAG-06 | TBD | Pending |
-| DASH-01 | TBD | Pending |
-| DASH-02 | TBD | Pending |
-| DASH-03 | TBD | Pending |
-| DASH-04 | TBD | Pending |
-| DASH-05 | TBD | Pending |
-| MCP-01 | TBD | Pending |
-| MCP-02 | TBD | Pending |
-| INV-01 | TBD | Pending |
-| INV-02 | TBD | Pending |
-| INV-03 | TBD | Pending |
-| LAW1-01 | TBD | Pending |
-| LAW1-02 | TBD | Pending |
-| LAW1-03 | TBD | Pending |
-| LAW1-04 | TBD | Pending |
-| LAW1-05 | TBD | Pending |
-| LAW2-01 | TBD | Pending |
-| LAW2-02 | TBD | Pending |
-| LAW2-03 | TBD | Pending |
-| LAW2-04 | TBD | Pending |
-| LAW2-05 | TBD | Pending |
-| LAW2-06 | TBD | Pending |
-| LAW2-07 | TBD | Pending |
-| LAW3-01 | TBD | Pending |
-| LAW3-02 | TBD | Pending |
-| LAW3-03 | TBD | Pending |
-| LAW3-04 | TBD | Pending |
-| LAW3-05 | TBD | Pending |
-| LAW3-06 | TBD | Pending |
-| REPT-01 | TBD | Pending |
-| REPT-02 | TBD | Pending |
-| REPT-03 | TBD | Pending |
-| EVAL-01 | TBD | Pending |
-| EVAL-02 | TBD | Pending |
-| EVAL-03 | TBD | Pending |
-| EVAL-04 | TBD | Pending |
-| SUB-01 | TBD | Pending |
-| SUB-02 | TBD | Pending |
+| TELE-01 | Phase 1 | Pending |
+| TELE-02 | Phase 1 | Pending |
+| TELE-03 | Phase 1 | Pending |
+| RAG-01 | Phase 2 | Pending |
+| RAG-02 | Phase 2 | Pending |
+| RAG-03 | Phase 2 | Pending |
+| RAG-04 | Phase 2 | Pending |
+| FLAG-01 | Phase 3 | Pending |
+| FLAG-02 | Phase 3 | Pending |
+| FLAG-03 | Phase 3 | Pending |
+| FLAG-04 | Phase 3 | Pending |
+| FLAG-05 | Phase 3 | Pending |
+| FLAG-06 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Pending |
+| DASH-02 | Phase 3 | Pending |
+| DASH-03 | Phase 7 | Pending |
+| DASH-04 | Phase 7 | Pending |
+| DASH-05 | Phase 3 | Pending |
+| MCP-01 | Phase 4 | Pending |
+| MCP-02 | Phase 4 | Pending |
+| INV-01 | Phase 5 | Pending |
+| INV-02 | Phase 5 | Pending |
+| INV-03 | Phase 5 | Pending |
+| LAW1-01 | Phase 5 | Pending |
+| LAW1-02 | Phase 5 | Pending |
+| LAW1-03 | Phase 5 | Pending |
+| LAW1-04 | Phase 5 | Pending |
+| LAW1-05 | Phase 5 | Pending |
+| LAW2-01 | Phase 6 | Pending |
+| LAW2-02 | Phase 6 | Pending |
+| LAW2-03 | Phase 6 | Pending |
+| LAW2-04 | Phase 6 | Pending |
+| LAW2-05 | Phase 6 | Pending |
+| LAW2-06 | Phase 6 | Pending |
+| LAW2-07 | Phase 6 | Pending |
+| LAW3-01 | Phase 5 | Pending |
+| LAW3-02 | Phase 5 | Pending |
+| LAW3-03 | Phase 5 | Pending |
+| LAW3-04 | Phase 5 | Pending |
+| LAW3-05 | Phase 5 | Pending |
+| LAW3-06 | Phase 5 | Pending |
+| REPT-01 | Phase 7 | Pending |
+| REPT-02 | Phase 7 | Pending |
+| REPT-03 | Phase 7 | Pending |
+| EVAL-01 | Phase 7 | Pending |
+| EVAL-02 | Phase 7 | Pending |
+| EVAL-03 | Phase 7 | Pending |
+| EVAL-04 | Phase 7 | Pending |
+| SUB-01 | Phase 7 | Pending |
+| SUB-02 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 51 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 51 ⚠️ (resolved by roadmap creation, next step)
+- v1 requirements: 50 total (corrected from an initial miscount of 51 during requirements definition; verified by direct enumeration during roadmap creation)
+- Mapped to phases: 50/50 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-20*
-*Last updated: 2026-07-20 after initial definition*
+*Last updated: 2026-07-20 after roadmap creation (traceability populated, requirement count corrected 51->50)*

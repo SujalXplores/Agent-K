@@ -1,18 +1,29 @@
+---
+gsd_state_version: '1.0'
+status: planning
+progress:
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-07-20)
 
-**Core value:** Every conclusion Agent K publishes is traceable to SigNoz evidence, and every action it takes has passed a code-enforced policy gate.
-**Current focus:** Phase 1 — Foundation (SigNoz, App, Telemetry, Sidecar Skeleton)
+**Core value:** Every claim Agent K publishes is backed by resolvable SigNoz evidence, and every action it takes passes a code-enforced safety gate — nothing is trust-the-model, everything is prove-it-in-telemetry.
+**Current focus:** Phase 1 - Telemetry Foundation
 
 ## Current Position
 
-Phase: 1 of 7 (Foundation — SigNoz, App, Telemetry, Sidecar Skeleton)
+Phase: 1 of 7 (Telemetry Foundation)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-07-20 — Roadmap created from locked requirements and research findings
+Last activity: 2026-07-20 — Roadmap created (7 phases, 50/50 v1 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -42,11 +53,8 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Roadmap: Structure is Horizontal Layers, not Vertical MVP — phases are foundation/incidents/pipeline/law1/law2/law3/eval, matching the locked day-plan's natural shape. Not independently demoable until late phases; expected and correct.
-- Roadmap: Deployer sidecar skeleton and cost price-table module pulled forward into Phase 1 (their headline days are 5 and 6) because they have no dependency on the agent pipeline and de-risk the hardest days.
-- Roadmap: Full per-LLM-call instrumentation and the collect/hypothesize loop-or-not decision pulled forward into Phase 3 rather than deferred to Phase 6, per research's Build-Order Corrections.
-- Roadmap: Law 1 (Phase 4) placed before Law 2 (Phase 5) — confirmed hard dependency, policy gate's confidence check consumes already-validated claims.
-- Roadmap: Clean-machine rebuild timing check pulled forward to mid-week (Phase 5/6), verified again before submission in Phase 7 — avoids discovering a >15min rebuild on the last day.
+- [Roadmap]: 7-phase horizontal-layer structure (per research SUMMARY.md), phases execute in strict dependency order except Phase 4 (MCP), which is parallelizable with Phases 2-3 but must land before Phase 5.
+- [Roadmap]: DASH-01/02/05 (Service Health, Incident Context, Alerts) placed in Phase 3 (data exists once RAG+failure-injection exist); DASH-03/04 (Agent Health, Action Audit Trail) deferred to Phase 7 (data doesn't exist until Agent K/Law 2 are built).
 
 ### Pending Todos
 
@@ -54,10 +62,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 1: Must buy $10 OpenRouter credit on Day 1 — unfunded free tier caps at 50 requests/day and will silently cap the eval matrix (research Pitfall 1).
-- Phase 1: Foundry's mechanism for co-locating non-SigNoz services (app, agent-k, deployer, postgres) on the same Docker network was not conclusively confirmed from docs — resolve against SigNoz/foundry moldings docs before finalizing compose layout.
-- Phase 3: Free-tier model structured-output/tool-call reliability under real conditions is unverified — test on Day 3, before committing. Documented fallback model (`cohere/north-mini-code:free`) lacks `structured_outputs` support and is not a safe drop-in.
-- Phase 5: SLO-breach check's implementation path (native SigNoz SLO object vs. internally computed metric) must be resolved before the policy module's SLO check is written — internal computation is the locked decision per Key Decisions, but confirm during Phase 2's alert work.
+- [Roadmap]: One team member unavailable Jul 24-26 (days 5-7 of the 7-day window) coincides with the heaviest, most safety-critical phases (5, 6, 7 — 32/50 requirements, including both remaining Laws and the full eval harness). Front-load Phase 5 Law 3 telemetry and Phase 6 policy-schema drafting; treat Day 5-6 clean-machine-rebuild and Groq-rate-limit checks as go/no-go gates before Phase 7 eval runs.
+- [Roadmap]: Team has zero prior Docker/OTel/SigNoz experience — Phase 1 ramp-up risk is real; research flags ClickHouse memory starvation (bump Docker Desktop memory to 6-8GB) and silent OTLP delivery failures (always debug via console-exporter first) as the top two Day 1 pitfalls.
 
 ## Deferred Items
 
@@ -70,6 +76,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-20
-Stopped at: ROADMAP.md and STATE.md created; REQUIREMENTS.md traceability validated (no changes needed — draft mapping matched research's dependency-derived phase structure exactly)
+Stopped at: ROADMAP.md and STATE.md created; REQUIREMENTS.md traceability updated. Ready for `/gsd-plan-phase 1`.
 Resume file: None
-</content>
