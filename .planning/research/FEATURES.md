@@ -60,7 +60,9 @@ SigNoz MCP integration (direct SDK calls from state machine)
                                                                                 └──requires──> Law 2 policy gate (confidence threshold is one check)
 
 Law 2 policy gate (SLO breach, allowlist, cooldown, confidence, deployment-relatedness, sandbox scope)
-    └──requires──> Rollback executor (single allowlisted action)
+    └──requires──> Action caller (single allowlisted action; one authenticated HTTP POST)
+                       └──requires──> Deployer sidecar (POST /rollback, sole Docker-socket holder,
+                                        privilege-isolated from Agent K)
                        └──requires──> Verified-outcome recheck (re-query SigNoz post-action)
 
 Investigation loop
@@ -91,7 +93,8 @@ Four seeded failure scenarios (feature-flag service)
 - **Law 3 self-telemetry should be instrumented inline, not bolted on:** because the locked scope requires per-LLM-call, per-MCP-query, per-hypothesis telemetry, retrofitting this after the investigation loop is built means re-touching every code path. Roadmap should treat "instrument as you go" as a standing constraint on the investigation-loop phase, not a separate later phase.
 - **Loop breaker and cost watchdog enhance the investigation loop but depend on Law 3 telemetry being live:** query hashing and cost tracking are Law 3 outputs; the breakers just consume them.
 - **Dashboard is a terminal dependency, not a starting point:** all four dashboard sections pull from telemetry that must already exist (app OTel, Law 1 spans, Law 3 metrics, Law 2 audit events) — it should be one of the last things built, consistent with existing Key Decisions.
-- **Rollback executor requires Law 2 approval as a hard gate, and its own success/failure is itself Law 3 telemetry** — the executor and Law 3 are mutually reinforcing (action feeds telemetry, telemetry feeds audit trail).
+- **Rollback requires Law 2 approval as a hard gate, and its own success/failure is itself Law 3 telemetry** — the action path and Law 3 are mutually reinforcing (action feeds telemetry, telemetry feeds audit trail).
+- **Rollback executes through a privilege-isolated deployer sidecar, not from Agent K itself:** the sidecar (a separate process that is the sole holder of the Docker socket, exposing one authenticated `POST /rollback`) must be stood up and network-reachable before the action path can be tested end-to-end. Agent K never holds the Docker socket — that isolation is precisely what makes Law 2's "inside the sandbox" check structural rather than cosmetic. The sidecar has no dependency on Agent K's reasoning pipeline, so it can be scaffolded and smoke-tested early to de-risk the most safety-critical component.
 
 ## MVP Definition
 

@@ -74,37 +74,37 @@ If Agent K's webhook handler kicks off the investigation as a background task (r
 
 ---
 
-### Pitfall 5: Docker Compose "restart" doesn't do what a rollback needs — and the rollback executor can't tell success from a crash loop
+### Pitfall 5: Docker Compose "restart" doesn't do what a rollback needs — and the deployer sidecar can't tell success from a crash loop
 
 **What goes wrong:**
-The rollback executor edits `docker-compose.yml`'s image tag and calls something that looks like a restart, but the running container keeps the *old* image because plain `docker compose restart` does not pick up compose-file changes — env vars, image tag, and mounts are baked in at container creation time. Separately, if the rollback target image itself is broken, `docker compose up -d` with `restart: always` will crash-loop forever, and a naive rollback executor that just "waits, then re-queries SigNoz" will time out without ever reporting *why* — it looks identical to "rollback didn't help" from the outside.
+The deployer sidecar edits `docker-compose.yml`'s image tag and calls something that looks like a restart, but the running container keeps the *old* image because plain `docker compose restart` does not pick up compose-file changes — env vars, image tag, and mounts are baked in at container creation time. Separately, if the rollback target image itself is broken, `docker compose up -d` with `restart: always` will crash-loop forever, and a naive sidecar (or an Agent K that just "waits, then re-queries SigNoz") will time out without ever reporting *why* — it looks identical to "rollback didn't help" from the outside.
 
 **Why it happens:**
 `docker compose restart` and `docker compose up -d` are easy to conflate for a team new to Docker — both "restart the service" in casual language, but only `up -d` recreates containers with the new compose-file config. Nobody on the team has hit this distinction before, so it's not an instinctive check.
 
 **How to avoid:**
-The rollback executor must always use `docker compose up -d <service>` (recreate), never `restart`, after editing the compose file's image tag. After recreate, explicitly check container health/exit status (`docker inspect` or `docker compose ps` for a running/healthy state) *before* re-querying SigNoz for recovery — distinguish "container is up and SigNoz still shows errors" from "container itself won't start" in the recorded outcome, since Law 3 telemetry needs to capture which failure mode actually occurred.
+The deployer sidecar must always use `docker compose up -d --force-recreate <service>` (recreate), never `restart`, after editing the compose file's image tag. After recreate, the sidecar explicitly checks container health/exit status (`docker inspect` or `docker compose ps` for a running/healthy state) and returns it in the `/rollback` response *before* Agent K re-queries SigNoz for recovery — distinguish "container is up and SigNoz still shows errors" from "container itself won't start" in the recorded outcome, since Law 3 telemetry needs to capture which failure mode actually occurred.
 
 **Warning signs:** Rollback marked "executed" in telemetry but the error-rate metric in SigNoz never recovers; `docker compose ps` showing the rolled-back service in a `Restarting` state.
 
-**Phase to address:** Rollback executor phase — build the health-check-then-verify step as a first-class part of the executor from the start, not bolted on after the demo reveals it's missing.
+**Phase to address:** Deployer sidecar / rollback phase — build the health-check-then-verify step as a first-class part of the sidecar from the start, not bolted on after the demo reveals it's missing.
 
 ---
 
-### Pitfall 6: Mounting the monitored app's compose file/Docker access from Agent K is a real privilege-escalation surface — even in a hackathon
+### Pitfall 6: Giving Agent K itself Docker access is a real privilege-escalation surface — even in a hackathon
 
 **What goes wrong:**
-"Agent K has direct access to the monitored app's `docker-compose.yml`/`.env` on the same host" is architecturally simplest, but if Agent K itself runs in a container and the team reaches for the obvious solution — mounting `/var/run/docker.sock` into Agent K's container so it can run `docker compose` commands — that grants Agent K (and by extension, anything that can reach its LLM-driven action path) root-equivalent control of the entire host, not just the one allowlisted rollback action. This directly undercuts the "Law 2: no action without budget, sandboxed to one allowlisted action" claim the project is trying to demonstrate.
+Letting Agent K hold the Docker socket — mounting `/var/run/docker.sock` into Agent K's container, or shelling out to `docker compose` from Agent K's own process — is the architecturally simplest path, but it grants Agent K (and by extension, anything that can reach its LLM-driven action path) root-equivalent control of the entire host, not just the one allowlisted rollback action. This directly undercuts the "Law 2: no action without budget, sandboxed to one allowlisted action" claim the project is trying to demonstrate: a sandbox enforced only by a policy check that the same process could bypass is a convention, not a boundary.
 
 **Why it happens:**
 Docker-socket mounting is the path of least resistance in every "container needs to control other containers" tutorial, and the security implications (full host root via the Docker API) are not obvious to a team without prior Docker experience — it looks like a config detail, not a security boundary.
 
 **How to avoid:**
-Simplest safe option for a 7-day build: run Agent K as a host process (not containerized) with filesystem access to the compose file and the Docker CLI on the host — this avoids socket-mounting entirely and matches "sandboxed to one allowlisted action" more honestly, since the sandbox is enforced in Agent K's own policy code (Law 2), not by container boundaries. If Agent K must run containerized, mount the socket read-only at minimum and document in the submission that "sandbox" refers to the code-level allowlist, not container isolation — do not claim stronger isolation than exists, since judges evaluating "technical excellence" may probe this.
+Route the action through the **deployer sidecar** (the locked mechanism): a separate, dependency-light container that is the *sole* holder of `/var/run/docker.sock` and exposes exactly one authenticated `POST /rollback` endpoint. Agent K never holds the socket and never runs `docker` — it makes one authenticated HTTP call carrying no image reference, and the sidecar's code hardcodes the target service and command (never taking either from the request body). This makes Law 2's "sandbox" structural (Agent K's worst-case blast radius is one call to an endpoint that does exactly one hardcoded thing) rather than a claim resting on the policy code alone. Do not rely on socket-proxy env-var filtering as the primary control — it scopes by resource *class*, not by *which service*, so the scoping must live in the sidecar's own code.
 
-**Warning signs:** Any point where the rollback executor's code path could theoretically construct an arbitrary `docker` command from LLM-influenced input rather than a hardcoded, parameter-limited function.
+**Warning signs:** Any point where an action code path could construct an arbitrary `docker` command from LLM-influenced input rather than a hardcoded, parameter-limited function; any mount of `docker.sock` into the Agent K container.
 
-**Phase to address:** Rollback executor design phase — decide host-process vs. containerized Agent K before writing the executor, since it's a hard-to-reverse architectural choice.
+**Phase to address:** Deployer sidecar design phase — settle the sidecar's isolation boundary (sole socket holder, hardcoded target, auth token, no image ref from caller) before writing the action path; scaffold the sidecar skeleton early since it has no dependency on Agent K's reasoning pipeline.
 
 ---
 
@@ -198,9 +198,9 @@ When the roadmap allocates days to phases, weight infra/instrumentation phases (
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|-----------------|------------------|
 | Skip console-exporter debug step, wire OTLP directly | Feels faster on paper | Every future "no traces showing" bug becomes a 2-hour guessing game instead of a 2-minute check | Never — costs almost nothing to add, pays for itself on the first debugging session |
-| Use `docker compose restart` in early rollback prototype instead of `up -d` | Simpler code, works if you never actually change the image tag while testing | Silently fails to roll back once the demo actually needs a real image-tag swap | Only during pure UI/report-rendering prototyping where the executor is stubbed, never once real rollback logic is being tested |
+| Use `docker compose restart` in early rollback prototype instead of `up -d` | Simpler code, works if you never actually change the image tag while testing | Silently fails to roll back once the demo actually needs a real image-tag swap | Only during pure UI/report-rendering prototyping where the deployer sidecar is stubbed, never once real rollback logic is being tested |
 | Hardcode `gen_ai.*` attribute names inline at each call site instead of a shared helper | Faster to write the first call | Attribute names drift across the RAG app and Agent K's self-telemetry, breaking dashboards that assume consistency | Only acceptable if there is truly one call site total — with two systems (RAG app + Agent K) both emitting GenAI spans, never acceptable here |
-| Mount Docker socket into Agent K's container for convenience | Avoids deciding host-process vs. containerized architecture early | Undercuts the "sandboxed single-action" safety claim central to the project's pitch; a judge who understands Docker security will notice | Never for the shipped submission — acceptable only as a throwaway local experiment, never committed |
+| Mount Docker socket into Agent K's container for convenience | Avoids standing up the deployer sidecar's HTTP contract early | Undercuts the "sandboxed single-action" safety claim central to the project's pitch; a judge who understands Docker security will notice. The locked mechanism is a deployer sidecar as sole socket holder | Never for the shipped submission — acceptable only as a throwaway local experiment, never committed |
 | Skip a forced-trigger test for loop-breaker/cost-watchdog | Saves an afternoon of writing an adversarial scenario | The exact code path most likely to matter live is the one path never verified to actually fire | Never — this is core to the "code-enforced, not trust-the-model" pitch |
 | Defer the clean-machine rebuild test until submission day | Feels like it's "probably fine" | 15-minute constraint is a judged, hard requirement — discovering a 25-minute cold-cache rebuild on the last day leaves no time to fix it | Never — must be verified with days of slack remaining |
 
@@ -228,9 +228,9 @@ When the roadmap allocates days to phases, weight infra/instrumentation phases (
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Mounting `/var/run/docker.sock` into a containerized Agent K for rollback convenience | Grants effective host root, not just the one allowlisted action — directly contradicts the "sandboxed action" claim | Run Agent K as a host process with direct file/CLI access instead, or if containerized, treat the sandbox as strictly code-level (Law 2 policy), document that honestly |
+| Mounting `/var/run/docker.sock` into Agent K (container or host process) for rollback convenience | Grants effective host root, not just the one allowlisted action — directly contradicts the "sandboxed action" claim | Route rollback through the deployer sidecar, which is the sole socket holder and exposes one authenticated hardcoded endpoint; Agent K holds no socket and runs no `docker` command |
 | Capturing full prompt/completion content in span *attributes* rather than events, then displaying via SigNoz's default panels | Any secrets/PII that ever end up in an LLM prompt become permanently indexed and broadly visible in trace search, harder to redact after the fact | Use span events for content capture (gated behind explicit opt-in), keep attributes to structured metadata only |
-| No allowlist enforcement bypass check | If the rollback executor's code path can be reached with any input other than the exact one action from a validated policy decision, Law 2 is not actually enforced | Keep the rollback executor's entry point parameter-limited (no arbitrary command construction), unit-test that non-allowlisted actions are rejected before any live demo |
+| No allowlist enforcement bypass check | If the action path can be reached with any input other than the exact one action from a validated policy decision, Law 2 is not actually enforced | Keep Agent K's action caller and the deployer sidecar's `/rollback` endpoint parameter-limited (target service + command hardcoded in the sidecar, no image ref from the caller, no arbitrary command construction), unit-test that non-allowlisted actions are rejected before any live demo |
 
 ## UX Pitfalls
 
@@ -243,7 +243,7 @@ When the roadmap allocates days to phases, weight infra/instrumentation phases (
 ## "Looks Done But Isn't" Checklist
 
 - [ ] **OTel instrumentation:** Often missing the console-exporter fallback path — verify traces can be inspected without depending on SigNoz being up, useful for every future debugging session
-- [ ] **Rollback executor:** Often missing post-recreate health verification — verify it distinguishes "container up but error rate unchanged" from "container failed to start" in its recorded outcome, not just a blanket timeout
+- [ ] **Deployer sidecar:** Often missing post-recreate health verification — verify it distinguishes "container up but error rate unchanged" from "container failed to start" in the `/rollback` response and recorded outcome, not just a blanket timeout
 - [ ] **Loop-breaker / cost-watchdog:** Often missing an actual test that triggers them — verify at least one adversarial test scenario forces each guardrail to fire and the escalation path executes
 - [ ] **Foundry deployment (`casting.yaml`/`.lock`):** Often only tested on a warm-cache dev machine — verify a genuinely clean-machine rebuild completes under 15 minutes, timed, before Day 6
 - [ ] **Evidence link checker:** Often only checks links resolve to *a* page, not that the page actually shows the claimed evidence — verify the checker confirms the linked SigNoz view actually contains data relevant to the claim, not just a 200 status
@@ -255,9 +255,9 @@ When the roadmap allocates days to phases, weight infra/instrumentation phases (
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|----------------|-----------------|
 | SigNoz/ClickHouse resource starvation discovered mid-week | LOW | Bump Docker Desktop memory allocation, restart the stack — usually resolves within an hour once diagnosed |
-| Rollback executor using `restart` instead of `up -d` discovered late | LOW | Single-line fix once diagnosed; the expensive part is *discovering* it, not fixing it — hence prioritizing the health-check-then-verify step early |
+| Deployer sidecar using `restart` instead of `up -d` discovered late | LOW | Single-line fix once diagnosed; the expensive part is *discovering* it, not fixing it — hence prioritizing the health-check-then-verify step early |
 | Clean-machine rebuild exceeds 15 minutes, discovered Day 6 | MEDIUM-HIGH | Identify the largest single time cost (usually model download or image build) and cut it: swap to a smaller embedding model, pre-bake the model into the image, reduce corpus seed size — requires a same-day decision, budget a half-day buffer for this specifically |
-| Docker-socket-mounted Agent K architecture discovered as a security concern late | MEDIUM | Refactor Agent K to run as a host process instead of containerized, or scope the mount read-only and document the limitation honestly in the submission — cheaper than it sounds if caught before the rollback executor has grown complex |
+| Docker-socket-mounted Agent K architecture discovered as a security concern late | MEDIUM | Move the socket + `docker compose` call out of Agent K into the deployer sidecar (sole socket holder, one authenticated endpoint), leaving Agent K with just an HTTP call — cheaper than it sounds if caught before the action path has grown complex |
 | Groq rate limits hit during eval day itself | MEDIUM | Switch to the pre-tested Cerebras overflow path — this is only a fast recovery if Cerebras was actually verified working in advance (see Pitfall 8); if not pre-tested, this becomes a HIGH-cost same-day scramble |
 
 ## Pitfall-to-Phase Mapping
@@ -268,8 +268,8 @@ When the roadmap allocates days to phases, weight infra/instrumentation phases (
 | Traces not reaching SigNoz (port/protocol/auth confusion) | Instrumentation setup phase | Console-exporter check passes before OTLP-to-SigNoz check is attempted |
 | GenAI semconv attribute drift | RAG-app instrumentation + Agent K self-telemetry phases | Shared attribute-naming helper used by both systems; attributes visible/filterable in SigNoz UI |
 | Orphaned background-task spans | Agent K core loop / Law 1 phase | Investigation spans verified as children of (or linked to) the triggering alert trace in SigNoz, not appearing as new root traces |
-| `restart` vs `up -d` rollback bug | Rollback executor phase | Executor's post-recreate check confirms the image tag actually changed (e.g., via `docker inspect`), not just that a command was run |
-| Docker-socket privilege escalation | Rollback executor design phase | Architecture decision (host-process vs. containerized Agent K) documented and, if containerized, socket access scoped/justified in writing |
+| `restart` vs `up -d` rollback bug | Deployer sidecar / rollback phase | Sidecar's post-recreate check confirms the image tag actually changed (e.g., via `docker inspect`), not just that a command was run |
+| Docker-socket privilege escalation | Deployer sidecar design phase | Deployer sidecar is the sole socket holder with one authenticated hardcoded endpoint; verified that Agent K's container has no `docker.sock` mount and issues no `docker` command |
 | MCP stdio stdout corruption | MCP integration phase | All server-side logging routed to stderr; a stray `print()` sweep done once before first real MCP call |
 | Groq free-tier rate limits vs. eval harness batch pattern | Evaluation harness phase | Full 12-run batch pattern executed at least once before final eval day with real rate limits, Cerebras fallback proven working |
 | Untested loop-breaker/cost-watchdog | Agent K core loop phase | At least one adversarial test scenario forces each guardrail to fire and the escalation-to-human path is exercised |

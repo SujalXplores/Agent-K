@@ -8,7 +8,7 @@
 
 ### System Overview
 
-Two independent OS processes on one host, both instrumented into one shared SigNoz backend, connected by three thin wires: a webhook (SigNoz→Agent K), an MCP HTTP connection (Agent K→SigNoz), and a filesystem/subprocess mutation (Agent K→RAG host config). There is no shared database, no shared memory, no framework coupling — the only integration surface between "the thing being watched" and "the thing watching it" is SigNoz itself plus the docker-compose file on disk. This is deliberate: it is what makes Law 1/2/3 auditable, and it's what keeps the two processes buildable/testable in isolation.
+Three OS processes on one host — the monitored RAG service, Agent K, and a minimal privilege-isolated `deployer` sidecar — all instrumented into one shared SigNoz backend, connected by three thin wires: a webhook (SigNoz→Agent K), an MCP HTTP connection (Agent K→SigNoz), and a single authenticated HTTP call (Agent K→`deployer`, which is the sole holder of the Docker socket and the only component that mutates the RAG host's compose config). There is no shared database, no shared memory, no framework coupling — the only integration surface between "the thing being watched" and "the thing watching it" is SigNoz itself, and Agent K's only way to act is one authenticated call to the sidecar's one endpoint. This is deliberate: it is what makes Law 1/2/3 auditable, it makes Law 2's "sandbox" boundary structural rather than conventional (Agent K never holds the Docker socket), and it keeps all three processes buildable/testable in isolation.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────┐
@@ -53,25 +53,31 @@ Two independent OS processes on one host, both instrumented into one shared SigN
 │  │ alert        │  │  RECEIVED→INVESTIGATING→HYPOTHESIZING→   │   │  │
 │  │ (validates,  │  │  POLICY_CHECK→(ACTING|REPORTING)→        │   │  │
 │  │ enqueues)    │  │  VERIFYING→REPORTED                       │   │  │
-│  └──────────────┘  └──────┬──────────┬──────────┬────────────┘   │  │
-│                            │          │          │                 │  │
-│                     ┌──────▼───┐ ┌────▼─────┐ ┌──▼──────────┐    │  │
-│                     │ MCP      │ │ Law 2     │ │ Rollback     │    │  │
-│                     │ Client   │ │ Policy    │ │ Executor     │────┼──┘
-│                     │ (evidence)│ │ Module    │ │ (subprocess) │  (mutates
-│                     └──────────┘ │ (code,    │ └──────────────┘   docker-
-│                                  │ no LLM)   │                     compose.yml
-│                     ┌──────────┐ └───────────┘  ┌──────────────┐  on RAG
-│                     │ Loop     │                 │ Report Store │  service
-│                     │ Breaker/ │                 │ (JSON RCA)   │  host)
-│                     │ Cost     │                 └──────┬───────┘
-│                     │ Watchdog │                        │
-│                     └──────────┘                 ┌──────▼───────┐
-│                                                    │ /report/{id} │
-│  All state-machine transitions, MCP calls,        │ HTML page    │
-│  LLM calls, policy decisions → OTel spans/metrics │ (Jinja2)     │
-│  → same OTLP path → SigNoz                        └──────────────┘
-└───────────────────────────────────────────────────────────────────┘
+│  └──────────────┘  └──┬────────┬──────────┬───────────┬──────┘   │  │
+│                        │        │          │           │          │  │
+│                 ┌──────▼─┐ ┌────▼────┐ ┌───▼──────┐ ┌──▼───────┐  │  │
+│                 │ MCP    │ │ Law 2    │ │ Action   │ │ Report    │ │  │
+│                 │ Client │ │ Policy   │ │ Caller   │ │ Store +   │ │  │
+│                 │(evid.) │ │ Module   │ │(1 auth'd │ │ /report/  │ │  │
+│                 └────────┘ │ (code,   │ │ HTTP POST│ │ {id} HTML │ │  │
+│                 ┌────────┐ │  no LLM) │ └────┬─────┘ └───────────┘ │  │
+│                 │ Loop   │ └──────────┘      │                      │  │
+│                 │ Breaker│                   │ POST /rollback       │  │
+│                 │ /Cost  │  all spans/       │ (auth'd, no image    │  │
+│                 │Watchdog│  metrics → OTLP   │  ref, internal net)  │  │
+│                 └────────┘  → SigNoz         │                      │  │
+└──────────────────────────────────────────────┼──────────────────────┘  │
+                                                ▼                         │
+┌───────────────────────────────────────────────────────────────────┐   │
+│  PROCESS 3: deployer sidecar (tiny FastAPI, internal network only) │   │
+├───────────────────────────────────────────────────────────────────┤   │
+│  POST /rollback → determines previous known-good tag itself,       │   │
+│  captures current tag, `docker compose up -d --force-recreate`,    │   │
+│  concurrency lock (409 if in-flight), emits deployment.marker span │   │
+│  ── SOLE holder of /var/run/docker.sock ───────────────────────────┼───┘
+│  (Agent K has no socket, no host mount, no `docker` shell-out)     │  (recreates
+└───────────────────────────────────────────────────────────────────┘   app on RAG
+                                                                          service host)
 ```
 
 ### Component Responsibilities
@@ -88,7 +94,8 @@ Two independent OS processes on one host, both instrumented into one shared SigN
 | Agent K state machine | Drives RECEIVED→...→REPORTED; the only place that decides "what next" | Plain Python class/function with an explicit `State` enum, no framework |
 | MCP Client wrapper | One place all SigNoz MCP tool calls go through — wraps each call in a span, hashes the query for loop detection | `mcp` Python SDK `ClientSession` over `streamablehttp_client` |
 | Law 2 Policy Module | Pure function(s): evidence + proposed action → allow/deny + reason, no LLM call inside it | Plain Python, unit-testable in isolation |
-| Rollback Executor | Edits `docker-compose.yml` image tag on the RAG service's compose file, runs `docker compose up -d`, creates a SigNoz deployment marker, re-queries for recovery | `subprocess.run(["docker","compose","up","-d"], ...)` + `PyYAML` for the edit |
+| Action Caller (in Agent K) | On an approved `Decision`, makes exactly one authenticated HTTP POST to the deployer sidecar's `/rollback` endpoint (carrying an investigation ID for audit correlation, no image reference), then waits and re-queries SigNoz for recovery | `httpx.post(DEPLOYER_URL + "/rollback", headers={"Authorization": ...})` — no Docker access of any kind |
+| `deployer` sidecar | The **sole** holder of the Docker socket. Exposes exactly one mutating endpoint (`POST /rollback`): determines the previous known-good tag itself, edits `docker-compose.yml` with `PyYAML` (capturing the prior tag), runs `docker compose up -d --force-recreate` (never `restart`), guards with a concurrency lock (409 if in-flight), emits the `deployment.marker` span. Nothing else (arbitrary compose commands, exec, builds) is reachable from its API. | Tiny FastAPI service, dependency-light, `/var/run/docker.sock` mounted only here; internal Docker network, port never published to host |
 | Report Store + HTML renderer | Persists the structured RCA JSON, serves it as an HTML page with deep links back into SigNoz | FastAPI route + Jinja2 template, JSON on disk or SQLite (no need for Postgres here) |
 | Loop Breaker / Cost Watchdog | Cross-cutting checks invoked from inside the state machine's MCP-call and LLM-call wrappers | Simple counters/hash-set per investigation run |
 
@@ -98,7 +105,7 @@ Two independent OS processes on one host, both instrumented into one shared SigN
 agent-k/                          # monorepo root (per PROJECT.md decision)
 ├── casting.yaml                  # Foundry deployment spec (SigNoz + collector + compose)
 ├── casting.yaml.lock
-├── docker-compose.yml            # RAG service + Postgres/pgvector (the file Agent K mutates)
+├── docker-compose.yml            # RAG service + Postgres/pgvector (the file the deployer sidecar mutates)
 ├── rag-service/
 │   ├── app/
 │   │   ├── main.py               # FastAPI app, /ask, /health
@@ -128,11 +135,15 @@ agent-k/                          # monorepo root (per PROJECT.md decision)
 │   │   │   └── cost_watchdog.py    # token/cost budget tracking
 │   │   ├── mcp_client.py           # thin wrapper over `mcp` SDK ClientSession, one call-site
 │   │   ├── policy.py               # Law 2: pure function(s), unit-tested standalone
-│   │   ├── rollback.py             # docker-compose.yml edit + `docker compose up -d` + marker
+│   │   ├── action_caller.py        # one authenticated HTTP POST to deployer /rollback (no Docker access)
 │   │   ├── report.py               # RCA schema (Law 1 claim/evidence), renderer, link checker
 │   │   └── llm_client.py           # same provider-abstraction pattern as rag-service
 │   ├── templates/report.html       # Jinja2 HTML report page
 │   └── Dockerfile
+├── deployer/                       # the sidecar — intentionally tiny, sole Docker-socket holder
+│   ├── main.py                     # POST /rollback, GET /health — nothing else
+│   ├── docker_ops.py               # the ONLY code in the repo that shells to docker/compose
+│   └── Dockerfile                  # /var/run/docker.sock mounted only into this container
 ├── infra/
 │   ├── otel-collector-config.yaml  # (if using a collector rather than direct OTLP)
 │   └── signoz-dashboard.json       # exported hand-built dashboard
@@ -143,7 +154,8 @@ agent-k/                          # monorepo root (per PROJECT.md decision)
 
 ### Structure Rationale
 
-- **`rag-service/` and `agent-k/` are siblings, not nested:** they are separate deployables (separate Dockerfiles, separate uvicorn processes, separate OTel service names). Nesting one inside the other would blur the "two-process system" boundary the whole safety story depends on.
+- **`rag-service/`, `agent-k/`, and `deployer/` are siblings, not nested:** they are separate deployables (separate Dockerfiles, separate uvicorn processes, separate OTel service names). Nesting one inside another would blur the multi-process boundary the whole safety story depends on.
+- **`deployer/` is deliberately small and dependency-light, and never imports `agent-k/` code (or vice versa):** the only contract between them is an HTTP request/response schema. This is what makes the sandbox boundary real rather than aspirational — if `deployer` imported `agent-k/`, a bug anywhere in Agent K's dependency tree could reach the Docker socket transitively. It is the only container with `/var/run/docker.sock` mounted.
 - **`agent-k/app/mcp_client.py` and `agent-k/app/policy.py` are single-purpose files, not folders:** both are judged directly (Law 1 evidence-visibility, Law 2 code-enforcement) — keeping each to one importable, individually unit-testable module makes both easy to point a judge at and easy to test in isolation from the state machine.
 - **`failure_modes/` lives inside the RAG service, gated by `flags.py`:** failure injection is a property of the monitored app, not of Agent K — Agent K must detect these purely through telemetry/evidence, never through direct code awareness of which flag is on. This boundary is itself part of what's being tested.
 - **`otel.py` duplicated in both services rather than shared as a library:** for a 7-day build with a team new to OTel, a shared internal package adds packaging overhead (versioning, install path) for marginal DRY benefit; near-identical bootstrap code in two files is fine and easier to debug per-service.
@@ -200,6 +212,19 @@ async def query(tool: str, args: dict) -> Evidence:
 **When to use:** Any agent action with real side effects. Matches the field's converging best practice (allowlist + pre-execution code-enforced check, separate from model reasoning) found across current agent-guardrail literature.
 **Trade-offs:** Requires the confidence/evidence schema to be stable and well-typed before the policy module can be written — meaning Law 1's evidence schema is a hard dependency of Law 2, not parallel work.
 
+### Pattern 4: Deployer Sidecar as the Sole Docker-Socket Holder (Law 2's structural sandbox)
+
+**What:** A minimal service (`deployer/`) is the only container in the compose topology with `/var/run/docker.sock` mounted. It exposes one HTTP endpoint that performs exactly one hardcoded operation (roll the `app` service back to its previous known-good tag). Agent K talks to it over the internal Docker network only — the port is never published to the host or internet.
+**When to use:** Any time an AI agent's action surface must include "restart/rollback a container" without giving the agent itself root-equivalent host access. This is a much stronger safety property than "the agent promises to only call rollback" — a compromised or misbehaving Agent K physically cannot touch anything but its one authenticated HTTP call.
+**Trade-offs:** One more container and an HTTP contract to build/test versus Agent K shelling out directly; but that isolation *is* the Law 2 "sandbox" check made structural instead of conventional, which is precisely what survives a judge probing the safety claim.
+
+**Implementation guidance (from research):**
+1. **The scoping lives in `deployer`'s own code, not in Docker permissions.** Socket-proxy tools (`Tecnativa/docker-socket-proxy` etc.) restrict by resource *class* (`CONTAINERS`, `POST`, …), not by *which service* is targeted — broad enough to touch any container on the host. Hardcode the target service name and the rollback command in `deployer`; never accept a container/service name from the request body. For a 7-day scope, skip the socket-proxy container and mount the socket directly into `deployer`; layer a proxy underneath later only as defense-in-depth if time remains.
+2. **The rollback target must not be attacker/LLM-controlled.** `deployer` decides the "previous known-good tag" itself (small local state file written at the last good deploy, or a pinned env var). Agent K's `/rollback` call carries **no image reference** — just "do it" plus an investigation ID for audit correlation. This closes the "policy gate bypassed → attacker supplies a malicious tag" concern entirely.
+3. **Authenticate `agent-k → deployer`** with a shared bearer token (env var both containers read) even on the internal network — stops a compromised `app` container (co-resident for OTLP export) from calling `/rollback` if segmentation is ever loosened.
+4. **Concurrency:** guard with an in-memory/file lock so two overlapping rollback calls can't race `docker compose`; return 409 if one is already in flight. Build this alongside the endpoint, not after.
+5. **Use `docker compose up -d --force-recreate <service>`, never `restart`** — only `up -d` recreates the container with the new image tag from the edited compose file (see Pitfall on `restart` vs `up -d`). No registry pull is needed since only two locally-built tags (current, previous) are ever in play, keeping rollback fast and demo-safe even if the network is flaky.
+
 ## Data Flow
 
 ### Full Alert → Report Pipeline
@@ -223,12 +248,15 @@ async def query(tool: str, args: dict) -> Evidence:
 [5] POLICY_CHECK: policy.py::evaluate(claim, evidence, action_proposal) → Decision
       allow=False → skip to [7] REPORTING (no action taken, report says why)
       allow=True  → [6] ACTING
-[6] ACTING: rollback.py
-      - reads docker-compose.yml on RAG service host, captures current image tag
-      - writes previous-known-good tag into docker-compose.yml
-      - subprocess: `docker compose up -d`
-      - creates a SigNoz deployment marker (via MCP or SigNoz API) for the rollback itself
-      - waits a fixed window
+[6] ACTING: action_caller.py → one authenticated POST /rollback to the deployer sidecar
+      (carries an investigation ID, no image reference; the sidecar does the rest:)
+        deployer:
+          - determines the previous known-good tag itself (Agent K never supplies it)
+          - reads docker-compose.yml, captures current tag, writes prev tag (PyYAML)
+          - subprocess: `docker compose up -d --force-recreate app` (never `restart`),
+            under a concurrency lock (returns 409 if a rollback is already in-flight)
+          - creates a SigNoz `deployment.marker` span for the rollback itself
+      - Agent K waits a fixed window
       - re-queries SigNoz (same MCP client) to check whether the SLO/error-rate recovered
       ↓ VERIFYING → outcome recorded (recovered / not recovered / inconclusive)
 [7] REPORTING: report.py
@@ -249,7 +277,7 @@ async def query(tool: str, args: dict) -> Evidence:
 
 1. **Telemetry flow (continuous, both processes → SigNoz):** RAG service and Agent K each run their own OTel SDK bootstrap, exporting OTLP (traces, metrics, logs) either directly to SigNoz's OTLP endpoint or via an OTel Collector sidecar. This is the substrate everything else depends on — nothing else works until this flows correctly, which is why it must be built and demoed first.
 2. **Evidence flow (per-investigation, Agent K ⇄ SigNoz via MCP):** one-directional request/response per MCP tool call; Agent K never writes to SigNoz through MCP except deployment markers/alert creation — it's primarily a read path for evidence-gathering, one call per hypothesis-relevant question.
-3. **Control flow (one-shot per incident, SigNoz → Agent K → RAG service host):** webhook triggers the whole run; the only place Agent K writes outside its own process is `docker-compose.yml` + the `docker compose up -d` subprocess call — a single, narrow, auditable mutation surface.
+3. **Control flow (one-shot per incident, SigNoz → Agent K → deployer → RAG service host):** webhook triggers the whole run; the only place Agent K acts outside its own process is a single authenticated `POST /rollback` to the deployer sidecar — Agent K never writes to disk or shells to Docker itself. The deployer is the only component that mutates `docker-compose.yml` + runs `docker compose up -d`, and it does exactly one hardcoded thing. A single, narrow, auditable mutation surface with the privilege boundary between "the thing deciding" and "the thing acting" made structural.
 4. **Report flow (Agent K → judge/human):** JSON RCA → HTML render, with every fact traceable back to a SigNoz deep link — this is the artifact judges/evaluators actually read, so it must faithfully reflect what the evidence/policy/action layers produced, nothing invented at render time.
 
 ## Scaling Considerations
@@ -258,9 +286,9 @@ Not a scaling concern for this project — single host, single incident at a tim
 
 | Scale | Architecture Adjustments |
 |-------|---------------------------|
-| Hackathon demo (this project) | Single host, sequential incidents, in-memory flags, direct docker-compose access — exactly as scoped |
+| Hackathon demo (this project) | Single host, sequential incidents, in-memory flags, deployer sidecar with direct docker-compose access on the one host — exactly as scoped |
 | If ever extended: concurrent incidents | State machine would need per-incident isolation (currently fine since a queue/lock isn't specified — investigations must be run one-at-a-time or the loop breaker/cooldown state needs incident-keying) |
-| If ever extended: multi-host rollback | Direct docker-compose access breaks; would need an actual deployment API/agent-per-host — explicitly out of scope for this build |
+| If ever extended: multi-host rollback | The single-host deployer sidecar breaks; would need a deployer-per-host or an actual deployment API behind the same one-endpoint contract — explicitly out of scope for this build |
 
 ### Scaling Priorities
 
@@ -284,7 +312,13 @@ Not applicable — do not spend build time here. If forced to name a first bottl
 
 **What people do:** `sed`/naive string-replace the image tag in `docker-compose.yml` and immediately run `docker compose up -d` without recording what the tag was before the edit.
 **Why it's wrong:** Breaks the ability to verify "rollback = revert to the immediately preceding version" as a provable claim in the report, and makes a rollback-of-a-bad-rollback impossible to reason about; also YAML string-replace is fragile against comments/formatting drift.
-**Do this instead:** Parse with `PyYAML`, read and log the current tag before mutating, write back with the library (not string replace), and record `{previous_tag, new_tag, timestamp}` as both a SigNoz deployment marker and a field in the eventual report.
+**Do this instead:** Inside the deployer sidecar, parse with `PyYAML`, read and log the current tag before mutating, write back with the library (not string replace), and record `{previous_tag, new_tag, timestamp}` as both a SigNoz deployment marker and a field the eventual report can surface.
+
+### Anti-Pattern 4: Putting the Docker Socket (or Docker CLI) Inside Agent K
+
+**What people do:** Mount `/var/run/docker.sock` into the Agent K container "just for the rollback action," or shell out to `docker compose` from Agent K's own process, reasoning that the Law 2 policy gate will stop it from being misused.
+**Why it's wrong:** It grants Agent K (and anything reachable through its LLM-driven action path) root-equivalent control of the entire host, not just the one allowlisted action — which dissolves the exact "sandboxed single action" claim the project exists to demonstrate. "Sandbox enforced by a policy check the same process could bypass" is a convention, not a boundary; a judge who understands Docker security will see through it.
+**Do this instead:** The deployer sidecar pattern above — Agent K's worst-case blast radius is "makes one authenticated HTTP call to an endpoint that does exactly one hardcoded thing." The socket lives only in `deployer`. If Agent K must be containerized, treat the sandbox as strictly code-level and never give its container the socket.
 
 ## Integration Points
 
@@ -295,17 +329,19 @@ Not applicable — do not spend build time here. If forced to name a first bottl
 | SigNoz (self-hosted via Foundry) | OTLP ingestion (traces/metrics/logs) from both processes; MCP server (HTTP mode) for Agent K's evidence queries; webhook notification channel for alert delivery to Agent K | Requires SigNoz v0.118.0+ for alert-history MCP tools per SigNoz MCP server README — verify installed Foundry version supports this before relying on `signoz_get_alert_history` |
 | Groq (LLM provider) | OpenAI-compatible client, used by both RAG service (answer generation) and Agent K (hypothesis reasoning) | Behind one provider-abstraction module per PROJECT.md; both services should emit `gen_ai.*` attributes on every call |
 | SigNoz MCP Server | Run as its own container (`signoz/signoz-mcp-server:latest`, `TRANSPORT_MODE=http`) alongside SigNoz; Agent K connects over HTTP using the official `mcp` Python SDK's streamable-HTTP client | Prefer HTTP transport over stdio-subprocess — avoids Agent K needing to manage a child process lifecycle for the MCP server |
-| Docker Engine (host) | Agent K shells out via `subprocess` to `docker compose up -d` in the RAG service's directory | Not a "service" so much as direct host access — the whole "sandbox" is the fact that only one compose file, one action, is ever touched |
+| Docker Engine (host) | Only the `deployer` sidecar talks to Docker, shelling out via `subprocess` to `docker compose up -d --force-recreate` in the RAG service's directory; Agent K never touches it | Not a "service" so much as scoped host access held by one tiny container — the "sandbox" is that the socket lives only in `deployer`, whose API can perform exactly one hardcoded action |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|----------------|-------|
-| RAG service ↔ Agent K | None directly — only via SigNoz (telemetry) and the docker-compose file (control) | This is the core architectural property: the monitored app has zero awareness of Agent K; Agent K has zero in-process awareness of RAG internals, only what telemetry exposes |
+| RAG service ↔ Agent K | None directly — only via SigNoz (telemetry); control flows Agent K → deployer → RAG service, never Agent K → RAG service | This is the core architectural property: the monitored app has zero awareness of Agent K; Agent K has zero in-process awareness of RAG internals, only what telemetry exposes, and cannot mutate the app except through the deployer's one endpoint |
 | Agent K webhook receiver ↔ state machine | In-process function call (enqueue or direct synchronous invoke, given single-incident-at-a-time scope) | Keep synchronous for the demo — no task queue needed at this scale |
 | State machine ↔ MCP client wrapper | In-process, `await mcp_client.query(...)` | Single call-site as described in Pattern 2 |
 | State machine ↔ Policy module | In-process, pure function call, no I/O inside `policy.py` | Enables policy.py to be unit-tested with zero mocking |
-| Policy module ↔ Rollback executor | In-process, only invoked when `Decision.allow == True` | Executor should itself re-check allowlist membership defensively (never trust caller alone) as a second gate |
+| Policy module ↔ Action caller | In-process, only invoked when `Decision.allow == True` | The action caller should itself re-check allowlist membership defensively (never trust caller alone) as a second gate before making the HTTP call |
+| Agent K ↔ `deployer` sidecar | HTTP, one authenticated POST endpoint, internal network only | The sandbox boundary. No other path between these two containers should exist. |
+| `deployer` ↔ Docker daemon | Unix socket, mounted only into `deployer` (optionally via `docker-socket-proxy` as later defense-in-depth) | See Pattern 4 (Deployer Sidecar) for scoping guidance — target service name and command are hardcoded, never taken from the request |
 | Feature flag store ↔ RAG request handlers | In-process, read-through on every relevant request | No pub/sub needed at single-process scale despite what general feature-flag literature suggests for larger systems |
 
 ## Suggested Build Order (dependency-ordered, informs 7-day roadmap)
@@ -318,7 +354,7 @@ Not applicable — do not spend build time here. If forced to name a first bottl
 6. **SigNoz MCP server stood up (HTTP mode)** + a throwaway script proving the official MCP Python SDK can call it and get real evidence back. Isolated, parallelizable with step 5, but must land before Agent K's investigation logic can be written against real data rather than mocks.
 7. **Agent K skeleton: webhook receiver + state machine shell + MCP client wrapper**, wired to steps 5+6, producing a bare unstructured report. Proves the full alert→evidence loop end to end before adding safety/action complexity on top.
 8. **Law 1 (evidence schema + link checker) and hybrid confidence scoring**, since Law 2's policy module needs a stable evidence/confidence shape to gate on — this is a hard dependency, not parallel work.
-9. **Law 2 policy module + rollback executor**, unit-tested against synthetic evidence before wiring to the real docker-compose mutation; this is also where the "one team member unavailable July 24-26" constraint bites hardest, so front-load design of the policy schema before that gap.
+9. **Law 2 policy module + action caller + deployer sidecar.** The policy module is unit-tested against synthetic evidence before wiring to any real action. The `deployer` sidecar (container, socket mount, one hardcoded authenticated `/rollback` endpoint, concurrency lock) has **zero dependency on Agent K's reasoning pipeline** — only on the app + versioned images existing — so its skeleton can be scaffolded and smoke-tested against a manual rollback much earlier (in parallel with steps 3-5), de-risking the single most safety-critical component instead of standing it up for the first time next to the policy logic. This is also where the "one team member unavailable July 24-26" constraint bites hardest, so front-load both the policy schema and the sidecar skeleton before that gap.
 10. **Law 3 self-telemetry, loop breaker, cost watchdog** — layered onto the now-working state machine; can be built incrementally alongside step 9 since both are cross-cutting wrappers around the same call sites (MCP client, LLM client).
 11. **HTML report page + polished SigNoz dashboard (agent health, action audit trail sections) + evaluation harness (3 runs/incident)** — last, since both consume artifacts (reports, telemetry) that only exist once steps 1-10 are working.
 12. **Submission blog**, written from the actual build log — genuinely last, depends on everything else being true.
