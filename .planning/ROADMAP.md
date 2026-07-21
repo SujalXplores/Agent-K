@@ -32,7 +32,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. A fresh clone of the repo stands up SigNoz via Foundry (`casting.yaml`/`casting.yaml.lock`) on a clean machine, with the rebuild time measured and recorded as under 15 minutes.
   2. A minimal FastAPI skeleton service's traces, metrics, and logs are confirmed visible in the SigNoz UI.
   3. When OTLP telemetry doesn't arrive, a console-exporter fallback lets the team inspect spans locally to debug the pipeline.
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+- [ ] 01-01-PLAN.md — FastAPI skeleton + OTel dual-exporter (console+OTLP-HTTP:4318) wiring [TELE-03 build]
+- [ ] 01-02-PLAN.md — SigNoz Foundry standup + committed casting.yaml/casting.yaml.lock + runbook [TELE-01]
+- [ ] 01-03-PLAN.md — Rebuild-timing harness + end-to-end telemetry verification in SigNoz UI [TELE-02, TELE-03 verify]
 
 ### Phase 2: RAG Service Core
 **Goal**: The monitored RAG application answers support questions end-to-end, with every step of the pipeline individually visible in SigNoz as GenAI-instrumented spans.
@@ -112,7 +115,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Telemetry Foundation | 0/TBD | Not started | - |
+| 1. Telemetry Foundation | 0/3 | Not started | - |
 | 2. RAG Service Core | 0/TBD | Not started | - |
 | 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
