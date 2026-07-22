@@ -1,0 +1,43 @@
+.button {
+  display: inline-flex;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  align-items: center;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.07);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+
+.button:active {
+  color: var(--acid);
+  border-color: var(--acid);
+  transform: scale(0.96);
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--duration-fast) var(--ease-in-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button:hover {
+    color: var(--acid);
+    border-color: var(--acid);
+    background: rgba(200, 255, 55, 0.1);
+  }
+
+  .button:hover svg {
+    transform: scale(1.12);
+  }
+}

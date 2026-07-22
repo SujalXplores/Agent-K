@@ -1,0 +1,275 @@
+.section {
+  width: var(--page);
+  margin-inline: auto;
+  padding-block: clamp(120px, 12vw, 190px);
+}
+
+.grid {
+  display: grid;
+  margin-top: 84px;
+  grid-template-columns: 0.78fr 1.22fr;
+  gap: clamp(50px, 8vw, 130px);
+  align-items: start;
+}
+
+.argument {
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.argumentIndex,
+.boardHeader {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 590;
+  letter-spacing: -0.005em;
+}
+
+.argument blockquote {
+  position: relative;
+  margin-top: 32px;
+  padding: 32px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+}
+
+.argument blockquote svg {
+  width: 27px;
+  height: 27px;
+  color: var(--coral);
+  fill: var(--coral);
+  stroke-width: 1.5;
+}
+
+.argument blockquote p {
+  margin-top: 24px;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 3rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.argument blockquote cite {
+  display: block;
+  margin-top: 20px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 590;
+}
+
+.argumentCopy {
+  margin-top: 32px;
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+}
+
+.signalBoard {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-2xl);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.boardHeader {
+  display: flex;
+  min-height: 56px;
+  padding-inline: 22px;
+  border-bottom: 1px solid var(--line-soft);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.boardHeader span:last-child {
+  color: var(--coral);
+  font-weight: 600;
+}
+
+.signalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.signalGrid article {
+  position: relative;
+  min-height: 225px;
+  padding: 28px;
+  border-bottom: 1px solid var(--line-soft);
+  overflow: hidden;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.signalGrid article:nth-child(odd) {
+  border-right: 1px solid var(--line-soft);
+}
+
+.signalGrid svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.6;
+}
+
+.signalGrid span,
+.signalGrid strong,
+.signalGrid small {
+  display: block;
+}
+
+.signalGrid span {
+  margin-top: 32px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 590;
+}
+
+.signalGrid strong {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 3rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.signalGrid small {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.signalGrid article::after {
+  position: absolute;
+  right: -34px;
+  bottom: -50px;
+  width: 145px;
+  height: 145px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: '';
+  opacity: 0.1;
+}
+
+.coral {
+  color: var(--coral);
+}
+
+.violet {
+  color: var(--violet);
+}
+
+.blue {
+  color: var(--blue);
+}
+
+.acid {
+  color: #34c759;
+}
+
+:global(html[data-theme='dark']) .acid {
+  color: var(--acid);
+}
+
+.signalGrid article span,
+.signalGrid article small {
+  color: var(--muted);
+}
+
+.signalGrid article strong {
+  color: currentColor;
+}
+
+.boardFooter {
+  display: flex;
+  gap: 16px;
+  min-height: 96px;
+  padding: 22px;
+  align-items: center;
+  color: var(--acid-ink);
+  background: color-mix(in srgb, var(--acid) 16%, transparent);
+}
+
+.boardFooter svg {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  color: var(--acid);
+}
+
+.boardFooter p {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+
+.boardFooter p span {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.016em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .signalGrid article:hover {
+    background: color-mix(in srgb, var(--blue) 4%, transparent);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .argument {
+    max-width: 680px;
+  }
+}
+
+@media (max-width: 560px) {
+  .section {
+    padding-block: 110px;
+  }
+
+  .grid {
+    margin-top: 60px;
+  }
+
+  .signalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .signalGrid article,
+  .signalGrid article:nth-child(odd) {
+    min-height: 190px;
+    border-right: 0;
+  }
+
+  .argument blockquote {
+    padding: 24px;
+  }
+}
+
+.argumentIndex,
+.boardHeader,
+.argument blockquote cite,
+.signalGrid span,
+.signalGrid small {
+  font-size: 0.8125rem;
+}
+
+.argumentCopy {
+  font-size: 1.0625rem;
+}
+
+.boardFooter p {
+  font-size: 0.9375rem;
+}

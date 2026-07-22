@@ -1,0 +1,240 @@
+.section {
+  position: relative;
+  color: #ebebf0;
+  background: #0c0c0e;
+  overflow: hidden;
+}
+
+.section::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    color-mix(in srgb, var(--blue) 14%, transparent),
+    transparent 70%
+  );
+}
+
+.glow {
+  position: absolute;
+  top: 20%;
+  left: 0;
+  z-index: 0;
+  width: 60%;
+  height: 60%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--violet) 18%, transparent),
+    transparent 70%
+  );
+  filter: blur(80px);
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: var(--page);
+  margin-inline: auto;
+  padding-block: clamp(120px, 12vw, 190px);
+}
+
+.cards {
+  display: grid;
+  margin-top: 80px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 620px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-2xl);
+  flex-direction: column;
+  color: #ebebf0;
+  background: rgba(28, 28, 30, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease),
+    border-color var(--duration-base) var(--ease);
+}
+
+.cardNumber {
+  position: absolute;
+  right: -10px;
+  bottom: -40px;
+  z-index: 0;
+  font-family: var(--font-display);
+  font-size: 16rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--card-accent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.cardTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 36px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 590;
+  letter-spacing: -0.005em;
+}
+
+.cardTop span:last-child {
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+  background: var(--card-accent);
+  font-weight: 600;
+}
+
+.iconBox {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin-top: 44px;
+  border: none;
+  border-radius: var(--radius-lg);
+  place-items: center;
+  background: color-mix(in srgb, var(--card-accent) 22%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.iconBox svg {
+  width: 34px;
+  height: 34px;
+  color: var(--card-accent);
+  stroke-width: 1.6;
+}
+
+.card h3 {
+  position: relative;
+  z-index: 1;
+  max-width: 380px;
+  margin-top: 36px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.4vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+.card > p {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  color: rgba(235, 235, 240, 0.66);
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+}
+
+.card ul {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+.card li {
+  display: grid;
+  min-height: 42px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  grid-template-columns: 20px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.card li svg {
+  width: 14px;
+  color: var(--card-accent);
+  stroke-width: 3;
+}
+
+.card li strong {
+  color: var(--card-accent);
+  font-weight: 600;
+}
+
+.evidence {
+  --card-accent: #0a84ff;
+}
+
+.policy {
+  --card-accent: #ff453a;
+}
+
+.telemetry {
+  --card-accent: #30d158;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+}
+
+@media (max-width: 1050px) {
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .card:last-child {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 700px) {
+  .cards {
+    margin-top: 60px;
+    grid-template-columns: 1fr;
+  }
+
+  .card:last-child {
+    grid-column: auto;
+  }
+
+  .card,
+  .card:last-child {
+    min-height: 560px;
+  }
+}
+
+.cardTop,
+.card li {
+  font-size: 0.875rem;
+}
+
+.card > p {
+  font-size: 1rem;
+}

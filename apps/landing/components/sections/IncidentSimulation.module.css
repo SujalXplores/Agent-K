@@ -1,0 +1,775 @@
+.console {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-2xl);
+  color: var(--console-text);
+  background: var(--console);
+  box-shadow: var(--shadow-xl);
+}
+
+.console::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(rgba(255, 255, 255, 0.015) 50%, transparent 50%);
+  background-size: 100% 4px;
+  mix-blend-mode: screen;
+}
+
+.consoleHeader,
+.incidentHead,
+.consoleBody,
+.gate {
+  position: relative;
+  z-index: 1;
+}
+
+.consoleHeader {
+  display: flex;
+  min-height: 76px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--console-line);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.consoleHeader > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.consoleK {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: var(--radius-md);
+  place-items: center;
+  color: var(--acid-ink);
+  background: var(--acid);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.consoleHeader small,
+.consoleHeader strong {
+  display: block;
+  font-family: var(--font-sans);
+}
+
+.consoleHeader small {
+  color: rgba(245, 245, 247, 0.5);
+  font-size: 0.8125rem;
+  font-weight: 590;
+  letter-spacing: -0.005em;
+}
+
+.consoleHeader strong {
+  margin-top: 3px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.recording {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--acid);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.recording i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+  animation: none;
+}
+
+.recordingActive i {
+  animation: recordPulse calc(var(--duration-reveal) * 2) var(--ease-in-out)
+    infinite alternate;
+}
+
+.incidentHead {
+  display: flex;
+  padding: 18px 20px 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.incidentHead span,
+.incidentHead strong {
+  display: block;
+}
+
+.incidentHead > div > span,
+.chartMeta span {
+  color: rgba(243, 240, 231, 0.46);
+  font-family: var(--font-mono);
+  font-size: 0.51rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incidentHead strong {
+  margin-top: 4px;
+  font-size: 0.88rem;
+  font-weight: 660;
+}
+
+.severity {
+  padding: 5px 8px;
+  border: 1px solid var(--coral);
+  color: var(--coral);
+  font-family: var(--font-mono);
+  font-size: 0.57rem;
+  font-weight: 800;
+}
+
+.chart {
+  position: relative;
+  z-index: 1;
+  margin: 10px 20px 18px;
+  padding: 13px 14px 10px;
+  border: 1px solid var(--console-line);
+  background: #070806;
+}
+
+.chartMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chartMeta strong {
+  color: var(--coral);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.chartField {
+  position: relative;
+  height: 164px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.13);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size:
+    100% 32px,
+    32px 100%;
+}
+
+.bars {
+  position: absolute;
+  inset: 13px 8px 10px 34px;
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  justify-content: stretch;
+}
+
+.bars i {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(to top, rgba(200, 255, 55, 0.06), var(--acid));
+  box-shadow: 0 -2px 0 var(--acid);
+  transform-origin: bottom;
+}
+
+.axisTop,
+.axisBottom {
+  position: absolute;
+  left: 3px;
+  z-index: 2;
+  color: rgba(243, 240, 231, 0.38);
+  font-family: var(--font-mono);
+  font-size: 0.47rem;
+}
+
+.axisTop {
+  top: 4px;
+}
+
+.axisBottom {
+  bottom: 4px;
+}
+
+.deployMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 61%;
+  z-index: 3;
+  width: 1px;
+  border-left: 1px dashed var(--coral);
+}
+
+.deployMarker span {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  color: var(--coral);
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.policyMarker {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  padding: 4px 7px;
+  border: 1px solid var(--acid);
+  color: var(--acid);
+  background: #070806;
+  font-family: var(--font-mono);
+  font-size: 0.47rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.consoleBody {
+  display: grid;
+  padding: 0 20px 20px;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 16px;
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stages li {
+  display: grid;
+  min-height: 45px;
+  grid-template-columns: 31px 1fr;
+  gap: 9px;
+  align-items: center;
+}
+
+.stageIcon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  border: 1px solid var(--console-line);
+  place-items: center;
+  color: rgba(243, 240, 231, 0.55);
+}
+
+.stageIcon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.7;
+}
+
+.stages strong,
+.stages small,
+.packet strong,
+.packet small {
+  display: block;
+}
+
+.stages strong {
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+
+.stages small {
+  margin-top: 2px;
+  color: rgba(243, 240, 231, 0.42);
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+}
+
+.stages .current .stageIcon {
+  color: var(--coral);
+  border-color: var(--coral);
+}
+
+.stages .complete .stageIcon {
+  color: #11110f;
+  border-color: var(--acid);
+  background: var(--acid);
+}
+
+.packet {
+  padding: 13px;
+  border: 1px solid var(--console-line);
+  background: var(--console-raised);
+}
+
+.packetHead {
+  display: flex;
+  margin-bottom: 9px;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(243, 240, 231, 0.48);
+  font-family: var(--font-mono);
+  font-size: 0.49rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.packetHead strong {
+  color: var(--acid);
+}
+
+.packet li {
+  display: grid;
+  min-height: 54px;
+  margin-top: 7px;
+  padding: 7px;
+  border: 1px solid var(--console-line);
+  grid-template-columns: 31px 1fr 15px;
+  gap: 8px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.evidenceIcon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  color: #11110f;
+}
+
+.evidenceIcon svg {
+  width: 14px;
+}
+
+.trace {
+  background: #84a2ff;
+}
+
+.log {
+  background: var(--coral);
+}
+
+.deploy {
+  background: var(--acid);
+}
+
+.packet strong {
+  font-size: 0.57rem;
+  font-weight: 650;
+}
+
+.packet small {
+  margin-top: 2px;
+  color: rgba(243, 240, 231, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.43rem;
+}
+
+.evidenceCheck {
+  width: 14px;
+  color: var(--acid);
+  stroke-width: 3;
+}
+
+.gate {
+  display: grid;
+  min-height: 77px;
+  padding: 12px 17px;
+  border-top: 1px solid var(--console-line);
+  grid-template-columns: 38px 1fr auto;
+  gap: 11px;
+  align-items: center;
+  transition: background-color var(--duration-base) var(--ease);
+}
+
+.gateIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--console-line);
+  place-items: center;
+  color: rgba(243, 240, 231, 0.48);
+}
+
+.gateIcon svg {
+  width: 18px;
+}
+
+.gateCopy small,
+.gateCopy strong {
+  display: block;
+}
+
+.gateCopy small {
+  color: rgba(243, 240, 231, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gateCopy strong {
+  margin-top: 3px;
+  font-size: 0.58rem;
+  font-weight: 650;
+}
+
+.gateChecks {
+  display: flex;
+  margin-top: 6px;
+  gap: 3px;
+  align-items: center;
+}
+
+.gateChecks i {
+  display: block;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  transform-origin: left;
+}
+
+.gateChecks small {
+  margin-left: 6px;
+  color: rgba(243, 240, 231, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gate button {
+  display: inline-flex;
+  gap: 7px;
+  min-height: 37px;
+  padding-inline: 11px;
+  border: 1px solid var(--console-text);
+  align-items: center;
+  color: var(--console);
+  background: var(--console-text);
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+
+.gate button svg {
+  width: 13px;
+  transition: transform var(--duration-fast) var(--ease-in-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gate button:hover {
+    border-color: var(--acid);
+    background: var(--acid);
+    transform: translateY(-1px);
+  }
+
+  .gate button:hover svg {
+    transform: rotate(-12deg) scale(1.08);
+  }
+}
+
+.gate button:active {
+  border-color: var(--acid);
+  background: var(--acid);
+  transform: translateY(1px) scale(0.96);
+}
+
+.allowed {
+  background: rgba(200, 255, 55, 0.08);
+}
+
+.allowed .gateIcon,
+.verified .gateIcon {
+  color: var(--acid);
+  border-color: var(--acid);
+}
+
+.verified {
+  background: rgba(57, 198, 202, 0.09);
+}
+
+.verified .gateIcon {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.disclaimer {
+  position: relative;
+  z-index: 1;
+  padding: 8px 17px;
+  border-top: 1px solid var(--console-line);
+  color: rgba(243, 240, 231, 0.32);
+  font-family: var(--font-mono);
+  font-size: 0.43rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+@keyframes recordPulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (max-width: 620px) {
+  .console {
+    box-shadow: 6px 6px 0 var(--coral);
+  }
+
+  .consoleHeader {
+    min-height: 68px;
+    padding: 12px 13px;
+  }
+
+  .recording {
+    font-size: 0;
+  }
+
+  .incidentHead {
+    padding-inline: 14px;
+  }
+
+  .chart {
+    margin-inline: 14px;
+  }
+
+  .chartField {
+    height: 135px;
+  }
+
+  .consoleBody {
+    padding-inline: 14px;
+    grid-template-columns: 1fr;
+  }
+
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .stages li {
+    display: flex;
+    min-height: 64px;
+    gap: 5px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .stages strong {
+    font-size: 0.47rem;
+    line-height: 1.2;
+  }
+
+  .stages small {
+    display: none;
+  }
+
+  .gate {
+    padding-inline: 13px;
+    grid-template-columns: 34px 1fr auto;
+  }
+
+  .gateCopy small {
+    display: none;
+  }
+
+  .gateCopy strong {
+    font-size: 0.49rem;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 390px) {
+  .consoleHeader strong {
+    font-size: 0.57rem;
+  }
+
+  .chart {
+    padding-inline: 9px;
+  }
+
+  .chartField {
+    height: 120px;
+  }
+
+  .policyMarker {
+    font-size: 0.4rem;
+  }
+
+  .packet li {
+    min-height: 50px;
+  }
+
+  .gate button {
+    padding-inline: 9px;
+    font-size: 0.46rem;
+  }
+}
+
+/* Dense telemetry remains readable without losing the compact console rhythm. */
+.consoleHeader small,
+.consoleHeader strong,
+.incidentHead > div > span,
+.chartMeta span,
+.severity,
+.chartMeta strong,
+.stages strong,
+.packet strong,
+.gateCopy strong {
+  font-size: 0.75rem;
+}
+
+.recording,
+.packetHead,
+.stages small,
+.packet small,
+.gate button {
+  font-size: 0.6875rem;
+}
+
+.axisTop,
+.axisBottom,
+.deployMarker span,
+.policyMarker,
+.gateCopy small,
+.disclaimer {
+  font-size: 0.625rem;
+}
+
+.consoleHeader small,
+.incidentHead > div > span,
+.chartMeta span,
+.stages small,
+.packetHead,
+.packet small,
+.gateCopy small,
+.disclaimer {
+  color: rgba(243, 240, 231, 0.68);
+}
+
+.axisTop,
+.axisBottom {
+  color: rgba(243, 240, 231, 0.62);
+}
+
+.gate button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (max-width: 620px) {
+  .recording {
+    font-size: 0;
+  }
+
+  .stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stages li {
+    display: grid;
+    min-height: 58px;
+    grid-template-columns: 29px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    flex-direction: initial;
+    text-align: left;
+  }
+
+  .stages li:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .stages strong {
+    font-size: 0.75rem;
+  }
+
+  .stages small {
+    display: block;
+    font-size: 0.625rem;
+  }
+
+  .gateCopy strong {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .gate button {
+    padding-inline: 9px;
+    font-size: 0.625rem;
+  }
+}
+
+/* Connected state motion keeps the investigation readable as it advances. */
+.stageColumn {
+  position: relative;
+  min-width: 0;
+}
+
+.stageRail {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 14px;
+  z-index: 0;
+  width: 1px;
+  overflow: hidden;
+  background: var(--console-line);
+  pointer-events: none;
+}
+
+.stageRail i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(var(--coral), var(--acid));
+  box-shadow: 0 0 8px rgba(200, 255, 55, 0.35);
+  transform-origin: top;
+}
+
+.stageIcon {
+  position: relative;
+  z-index: 1;
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease);
+}
+
+.statusViewport {
+  display: block;
+  min-height: 1.45em;
+  overflow: hidden;
+}
+
+@media (max-width: 620px) {
+  .stageRail {
+    display: none;
+  }
+}
