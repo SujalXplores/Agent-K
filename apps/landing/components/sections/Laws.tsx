@@ -24,7 +24,11 @@ export function Laws() {
 
   // Background glow drifts as you scroll through the section
   const glowX = useTransform(scrollYProgress, [0, 1], ['-10%', '30%']);
-  const glowOpacity = useTransform(scrollYProgress, [0, 0.4, 0.8, 1], [0, 0.7, 0.7, 0]);
+  const glowOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.4, 0.8, 1],
+    [0, 0.7, 0.7, 0],
+  );
 
   // Per-card parallax: each card rises and settles at a different scroll point
   const cardY0 = useTransform(scrollYProgress, [0.05, 0.35], [60, 0]);
@@ -40,17 +44,30 @@ export function Laws() {
 
   // Header parallax — drifts upward slightly slower than scroll
   const headerY = useTransform(scrollYProgress, [0, 0.3], [40, 0]);
-  const headerOpacity = useTransform(scrollYProgress, [0, 0.15, 0.3], [0.4, 1, 1]);
+  const headerOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.15, 0.3],
+    [0.4, 1, 1],
+  );
 
   return (
-    <section className={styles.section} id="laws" aria-labelledby="laws-title" ref={sectionRef}>
+    <section
+      className={styles.section}
+      id="laws"
+      aria-labelledby="laws-title"
+      ref={sectionRef}
+    >
       <m.div
         className={styles.glow}
         aria-hidden="true"
         {...(reduceMotion ? {} : { style: { x: glowX, opacity: glowOpacity } })}
       />
       <div className={styles.inner}>
-        <m.div {...(reduceMotion ? {} : { style: { y: headerY, opacity: headerOpacity } })}>
+        <m.div
+          {...(reduceMotion
+            ? {}
+            : { style: { y: headerY, opacity: headerOpacity } })}
+        >
           <SectionIntro
             inverse
             number="02"
@@ -76,7 +93,9 @@ export function Laws() {
               <m.article
                 className={`${styles.card} ${styles[law.key]}`}
                 key={law.number}
-                {...(reduceMotion ? {} : { style: { y: cardTransforms[index] ?? cardY0 } })}
+                {...(reduceMotion
+                  ? {}
+                  : { style: { y: cardTransforms[index] ?? cardY0 } })}
               >
                 <div className={styles.cardTop}>
                   <span>{law.number} / 03</span>
@@ -85,7 +104,9 @@ export function Laws() {
                 <m.div
                   className={styles.iconBox}
                   initial={false}
-                  {...(reduceMotion ? {} : { whileHover: { scale: 1.06, rotate: -3 } })}
+                  {...(reduceMotion
+                    ? {}
+                    : { whileHover: { scale: 1.06, rotate: -3 } })}
                   transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                 >
                   <LawIcon aria-hidden="true" />
@@ -105,7 +126,9 @@ export function Laws() {
                   className={styles.cardNumber}
                   aria-hidden="true"
                   initial={false}
-                  {...(reduceMotion ? {} : { style: { opacity: numOpacities[index] } })}
+                  {...(reduceMotion
+                    ? {}
+                    : { style: { opacity: numOpacities[index] } })}
                 >
                   {law.number}
                 </m.span>

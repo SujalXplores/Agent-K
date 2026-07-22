@@ -1,7 +1,7 @@
-import type { ElementType, PropsWithChildren } from "react";
+import type { ElementType, PropsWithChildren } from 'react';
 
-export type RevealVariant = "fade" | "up" | "hero" | "panel" | "side";
-type RevealElement = "article" | "div" | "footer" | "header" | "li";
+export type RevealVariant = 'fade' | 'up' | 'hero' | 'panel' | 'side';
+type RevealElement = 'article' | 'div' | 'footer' | 'header' | 'li';
 
 type RevealProps = PropsWithChildren<{
   as?: RevealElement;
@@ -13,20 +13,20 @@ type RevealProps = PropsWithChildren<{
 }>;
 
 export function Reveal({
-  as = "div",
+  as = 'div',
   children,
   className,
   delay = 0,
   amount = 0.12,
   ariaHidden,
-  variant = "up",
+  variant = 'up',
 }: RevealProps) {
   const Component: ElementType = as;
 
   return (
     <Component
       aria-hidden={ariaHidden}
-      className={`content-reveal${className ? ` ${className}` : ""}`}
+      className={`content-reveal${className ? ` ${className}` : ''}`}
       data-reveal-delay={delay || undefined}
       data-reveal-state="pending"
       data-reveal-threshold={amount}

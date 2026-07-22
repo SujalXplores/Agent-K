@@ -43,9 +43,12 @@ export function MotionOrchestrator() {
     const introFrame = requestAnimationFrame(() => {
       intro.forEach((element, index) => {
         introTimers.push(
-          setTimeout(() => {
-            element.dataset.revealState = 'revealed';
-          }, 60 + index * 55),
+          setTimeout(
+            () => {
+              element.dataset.revealState = 'revealed';
+            },
+            60 + index * 55,
+          ),
         );
       });
     });

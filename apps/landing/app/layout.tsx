@@ -33,7 +33,13 @@ const sora = Sora({
   variable: '--font-sora',
   weight: ['400', '500', '600', '700', '800'],
   preload: true,
-  fallback: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+  fallback: [
+    'var(--font-inter)',
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'system-ui',
+    'sans-serif',
+  ],
   adjustFontFallback: true,
 });
 
@@ -99,7 +105,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html className={`${inter.variable} ${sora.variable}`} lang="en" suppressHydrationWarning>
+    <html
+      className={`${inter.variable} ${sora.variable}`}
+      lang="en"
+      suppressHydrationWarning
+    >
       <head>
         <meta id="theme-color" name="theme-color" content="#f2f2f7" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
