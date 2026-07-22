@@ -1,4 +1,5 @@
 .planning/research/.cache/
+.claude
 
 # Secrets
 .env
