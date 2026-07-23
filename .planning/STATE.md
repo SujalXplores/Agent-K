@@ -6,14 +6,14 @@ current_phase: 02
 current_phase_name: rag-service-core
 status: executing
 stopped_at: "Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)"
-last_updated: "2026-07-23T20:05:35.495Z"
+last_updated: "2026-07-23T20:17:19.347Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 02 execution resumed (wave continue)
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 14
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 02 (rag-service-core) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-23 — Phase 02 execution resumed (wave continue)
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 52min | 3 tasks | 4 files |
 | Phase 02 P03 | 6min | 2 tasks | 4 files |
 | Phase 02 P01 | 62min | 3 tasks | 9 files |
+| Phase 02 P02 | 9min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Single record_llm_call_attributes helper (app/observability.py) is the sole source of truth for gen_ai.*/agentk.*/rag.* attribute names, reused unchanged by Phase 5 self-telemetry — Prevents attribute-name drift breaking Phase 3/7 dashboard queries (D-06)
 - [Phase 02]: Added greenlet==3.5.4 pin - SQLAlchemy async engine requires it for Alembic's async_engine_from_config bridge, was missing from requirements.txt
 - [Phase 02]: rag-postgres (pgvector/pgvector:pg16) live with vector extension + documents table (vector(384)) applied via Alembic migration 0001, unblocking 02-02 corpus seeding
+- [Phase 02]: Corpus authored via a one-off (non-committed) Python generator script producing 72 real hand-authored docs for fictional B2B SaaS product Flowdeck, across the six D-01 topic areas with D-02 length variety
+- [Phase 02]: Seed script idempotency implemented as delete-all-then-insert inside one transaction (corpus-on-disk is source of truth), not ON CONFLICT upsert
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T20:05:35.491Z
+Last session: 2026-07-23T20:17:19.343Z
 Stopped at: Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)
 Resume file: None
