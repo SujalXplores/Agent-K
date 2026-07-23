@@ -9,7 +9,7 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Telemetry Foundation (TELE)
 
-- [ ] **TELE-01**: SigNoz runs self-hosted via Foundry, with `casting.yaml` and `casting.yaml.lock` committed to the repo
+- [x] **TELE-01**: SigNoz runs self-hosted via Foundry, with `casting.yaml` and `casting.yaml.lock` committed to the repo
 - [ ] **TELE-02**: A clean-machine Foundry rebuild (fresh clone → running SigNoz) completes in under 15 minutes, measured and recorded, not assumed
 - [ ] **TELE-03**: A minimal FastAPI skeleton emits traces, metrics, and logs that are confirmed visible in the SigNoz UI, with a console-exporter fallback available for debugging when telemetry doesn't arrive
 
@@ -121,7 +121,7 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TELE-01 | Phase 1 | Pending |
+| TELE-01 | Phase 1 | Complete |
 | TELE-02 | Phase 1 | Pending |
 | TELE-03 | Phase 1 | Pending |
 | RAG-01 | Phase 2 | Pending |
@@ -173,6 +173,7 @@ Populated during roadmap creation.
 | SUB-02 | Phase 7 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 50 total (corrected from an initial miscount of 51 during requirements definition; verified by direct enumeration during roadmap creation)
 - Mapped to phases: 50/50 ✓
 - Unmapped: 0 ✓
