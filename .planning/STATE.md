@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01
-current_phase_name: telemetry-foundation
-status: executing
+status: completed
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-23T11:00:48.660Z"
+last_updated: "2026-07-23T12:04:58.848Z"
 last_activity: 2026-07-23
-last_activity_desc: Phase 01 execution resumed (wave continue)
+last_activity_desc: Phase 01 marked complete
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 14
+current_phase_name: telemetry-foundation
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 01 (telemetry-foundation) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-07-23 — Phase 01 execution resumed (wave continue)
+Phase: 01 — COMPLETE
+Plan: 3 of 3
+Status: Phase 01 complete
+Last activity: 2026-07-23 — Phase 01 marked complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01 P02 | 25min | 3 tasks | 3 files |
+| Phase 01 P03 | 52min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Roadmap]: DASH-01/02/05 (Service Health, Incident Context, Alerts) placed in Phase 3 (data exists once RAG+failure-injection exist); DASH-03/04 (Agent Health, Action Audit Trail) deferred to Phase 7 (data doesn't exist until Agent K/Law 2 are built).
 - [Rollback mechanism]: Rollback now executes via a separate, privilege-isolated `deployer` sidecar (sole Docker-socket holder, one authenticated `POST /rollback`, hardcoded target/command, concurrency lock) instead of Agent K editing docker-compose directly on the host. Agent K never holds the Docker socket — its worst-case blast radius is one HTTP call. Adopted from the `main` branch plan for a structurally-enforced (not convention-based) Law 2 sandbox. The sidecar has no dependency on the agent pipeline, so its skeleton can be scaffolded early to de-risk it. Updated across PROJECT.md (req + Key Decision), REQUIREMENTS.md (LAW2-03/04), ROADMAP.md (Phase 6), and all four research docs.
 - [Phase 01-02]: SIGNOZ-RUNBOOK.md documents the CORRECTED D-02 fallback (forge + manual docker compose against pours/deployment/compose.yaml), not the removed legacy docker-compose.yaml
+- [Phase 01]: SigNoz's OTLP receivers never bind on a freshly-cast stack until first-run admin/org setup completes (POST /api/v1/register) - documented in SIGNOZ-RUNBOOK.md sec 1.5 as a required step for every fresh rebuild
+- [Phase 01]: FastAPI route handlers must call logging.getLogger(__name__).info(...) explicitly to emit a trace-correlated log record - uvicorn's own access log does not propagate to the OTel-instrumented root logger
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T10:59:22.011Z
+Last session: 2026-07-23T12:02:53.889Z
 Stopped at: Phase 1 context gathered
 Resume file: .planning/phases/01-telemetry-foundation/01-CONTEXT.md

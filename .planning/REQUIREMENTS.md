@@ -10,8 +10,8 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 ### Telemetry Foundation (TELE)
 
 - [x] **TELE-01**: SigNoz runs self-hosted via Foundry, with `casting.yaml` and `casting.yaml.lock` committed to the repo
-- [ ] **TELE-02**: A clean-machine Foundry rebuild (fresh clone → running SigNoz) completes in under 15 minutes, measured and recorded, not assumed
-- [ ] **TELE-03**: A minimal FastAPI skeleton emits traces, metrics, and logs that are confirmed visible in the SigNoz UI, with a console-exporter fallback available for debugging when telemetry doesn't arrive
+- [x] **TELE-02**: A clean-machine Foundry rebuild (fresh clone → running SigNoz) completes in under 15 minutes, measured and recorded, not assumed
+- [x] **TELE-03**: A minimal FastAPI skeleton emits traces, metrics, and logs that are confirmed visible in the SigNoz UI, with a console-exporter fallback available for debugging when telemetry doesn't arrive
 
 ### RAG Service (RAG)
 
@@ -122,8 +122,8 @@ Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TELE-01 | Phase 1 | Complete |
-| TELE-02 | Phase 1 | Pending |
-| TELE-03 | Phase 1 | Pending |
+| TELE-02 | Phase 1 | Complete |
+| TELE-03 | Phase 1 | Complete |
 | RAG-01 | Phase 2 | Pending |
 | RAG-02 | Phase 2 | Pending |
 | RAG-03 | Phase 2 | Pending |

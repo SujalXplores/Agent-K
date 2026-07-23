@@ -15,7 +15,7 @@ Agent K ships as a small set of coupled processes — the monitored RAG app, Age
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Telemetry Foundation** - Stand up self-hosted SigNoz via Foundry and confirm a minimal service's traces/metrics/logs actually arrive in the UI
+- [x] **Phase 1: Telemetry Foundation** - Stand up self-hosted SigNoz via Foundry and confirm a minimal service's traces/metrics/logs actually arrive in the UI (completed 2026-07-23)
 - [ ] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A minimal FastAPI skeleton service's traces, metrics, and logs are confirmed visible in the SigNoz UI.
   3. When OTLP telemetry doesn't arrive, a console-exporter fallback lets the team inspect spans locally to debug the pipeline.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 **Wave 1**
 
 - [x] 01-01-PLAN.md — FastAPI skeleton + OTel dual-exporter (console+OTLP-HTTP:4318) wiring [TELE-03 build]
@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-03-PLAN.md — Rebuild-timing harness + end-to-end telemetry verification in SigNoz UI [TELE-02, TELE-03 verify]
+- [x] 01-03-PLAN.md — Rebuild-timing harness + end-to-end telemetry verification in SigNoz UI [TELE-02, TELE-03 verify]
 
 ### Phase 2: RAG Service Core
 
@@ -142,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Telemetry Foundation | 2/3 | In Progress|  |
+| 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
 | 2. RAG Service Core | 0/TBD | Not started | - |
 | 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
