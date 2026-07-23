@@ -17,8 +17,8 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 - [ ] **RAG-01**: A FastAPI `/ask` endpoint answers a support question by retrieving relevant docs from pgvector and generating an answer via the configured LLM provider
 - [ ] **RAG-02**: A synthetic support-doc corpus (50-200 authored docs) is seeded into PostgreSQL+pgvector using local `sentence-transformers` embeddings (no external embedding API)
-- [ ] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
-- [ ] **RAG-04**: The LLM client is a single OpenAI-compatible module that switches between Groq, Cerebras, and Gemini Flash via an environment variable, optionally routed through LiteLLM
+- [x] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
+- [x] **RAG-04**: The LLM client is a single OpenAI-compatible module that switches between Groq, Cerebras, and Gemini Flash via an environment variable, optionally routed through LiteLLM
 
 ### Failure Injection (FLAG)
 
@@ -126,8 +126,8 @@ Populated during roadmap creation.
 | TELE-03 | Phase 1 | Complete |
 | RAG-01 | Phase 2 | Pending |
 | RAG-02 | Phase 2 | Pending |
-| RAG-03 | Phase 2 | Pending |
-| RAG-04 | Phase 2 | Pending |
+| RAG-03 | Phase 2 | Complete |
+| RAG-04 | Phase 2 | Complete |
 | FLAG-01 | Phase 3 | Pending |
 | FLAG-02 | Phase 3 | Pending |
 | FLAG-03 | Phase 3 | Pending |

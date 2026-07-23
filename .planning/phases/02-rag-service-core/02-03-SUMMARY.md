@@ -159,3 +159,7 @@ None - no external service configuration required. `GROQ_API_KEY`/`CEREBRAS_API_
 ---
 *Phase: 02-rag-service-core*
 *Completed: 2026-07-23*
+
+## Self-Check: PASSED
+
+All created files confirmed on disk (`app/observability.py`, `app/llm.py`, `tests/conftest.py`, `tests/test_llm.py`, this SUMMARY.md) and all commit hashes (`dae1af1`, `cfba1ac`, `1644eda`, `bde6002`) confirmed present in `git log --oneline --all`.

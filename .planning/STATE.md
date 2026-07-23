@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: rag-service-core
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-07-23T15:38:07.591Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-07-23T19:58:16.353Z"
 last_activity: 2026-07-23
-last_activity_desc: Phase 02 execution started
+last_activity_desc: Phase 02 execution resumed (wave continue)
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 14
 ---
 
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 02 (rag-service-core) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 02
-Last activity: 2026-07-23 — Phase 02 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-07-23 — Phase 02 execution resumed (wave continue)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01 P02 | 25min | 3 tasks | 3 files |
 | Phase 01 P03 | 52min | 3 tasks | 4 files |
+| Phase 02 P03 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 01-02]: SIGNOZ-RUNBOOK.md documents the CORRECTED D-02 fallback (forge + manual docker compose against pours/deployment/compose.yaml), not the removed legacy docker-compose.yaml
 - [Phase 01]: SigNoz's OTLP receivers never bind on a freshly-cast stack until first-run admin/org setup completes (POST /api/v1/register) - documented in SIGNOZ-RUNBOOK.md sec 1.5 as a required step for every fresh rebuild
 - [Phase 01]: FastAPI route handlers must call logging.getLogger(__name__).info(...) explicitly to emit a trace-correlated log record - uvicorn's own access log does not propagate to the OTel-instrumented root logger
+- [Phase 02]: Single record_llm_call_attributes helper (app/observability.py) is the sole source of truth for gen_ai.*/agentk.*/rag.* attribute names, reused unchanged by Phase 5 self-telemetry — Prevents attribute-name drift breaking Phase 3/7 dashboard queries (D-06)
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T14:19:45.492Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-rag-service-core/02-CONTEXT.md
+Last session: 2026-07-23T19:58:16.350Z
+Stopped at: Completed 02-03-PLAN.md
+Resume file: None
