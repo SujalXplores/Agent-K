@@ -23,6 +23,14 @@ app = fastapi.FastAPI()
 # 2. Register routes (only /healthz in this phase - D-05).
 @app.get("/healthz")
 async def healthz():
+    # Explicit per-request log call so this route emits a trace-correlated
+    # log record (TELE-03). uvicorn's own access log is emitted via the
+    # `uvicorn.access` logger, which sets `propagate: False` by default and
+    # therefore never reaches the root logger's OTel LoggingHandler - it
+    # prints to console but is never exported. This call runs inside the
+    # active request span, so LoggingInstrumentor injects a real (non-zero)
+    # trace_id/span_id into it and it is exported like any other log.
+    logging.getLogger(__name__).info("healthz request handled")
     return {"status": "ok"}
 
 
