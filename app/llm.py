@@ -15,6 +15,14 @@ module never re-defines an attribute name.
 Provider errors are intentionally NOT caught here - they propagate so the
 /ask handler (02-04) can surface them; retry logic is explicitly out of scope
 for this phase (T-02-05, Phase 3's injected retry-storm scenario).
+
+A missing or empty provider credential is a hard failure at client
+construction (MissingProviderKeyError), so the OpenAI SDK's own
+OPENAI_API_KEY fallback can never engage against a third-party base_url
+(CR-04, 02-VERIFICATION.md). A completion with no choices raises
+EmptyCompletionError and the chat span records that failure (CR-03); a
+None message content normalizes to an empty string so the D-04 response
+contract cannot be violated at serialization time.
 """
 
 from __future__ import annotations
@@ -51,6 +59,25 @@ PROVIDER_CONFIG: dict[str, dict[str, str]] = {
 }
 
 
+class MissingProviderKeyError(RuntimeError):
+    """Raised when the selected provider's credential env var is absent or empty.
+
+    Failing here is deliberate: the openai SDK's constructor falls back to
+    OPENAI_API_KEY from the environment whenever `api_key` is None, which
+    would silently transmit an unrelated credential to the selected
+    provider's third-party base_url (CR-04, 02-VERIFICATION.md).
+    """
+
+
+class EmptyCompletionError(RuntimeError):
+    """Raised when a provider's completion carries no usable assistant message.
+
+    A provider can legitimately return an empty `choices` list (e.g. a
+    safety filter trip) - this turns that into a typed, telemetry-visible
+    failure instead of a bare IndexError (CR-03, 02-VERIFICATION.md).
+    """
+
+
 class LlmResult(NamedTuple):
     """Result of a single generate() call."""
 
@@ -78,16 +105,42 @@ def _resolve_provider() -> tuple[str, dict[str, str]]:
     return provider, cfg
 
 
+def _require_api_key(provider: str) -> str:
+    """Return the provider's API key, or raise if it is missing or empty.
+
+    Passing None to the OpenAI SDK constructor makes it silently fall back
+    to OPENAI_API_KEY from the environment, which could transmit an
+    unrelated credential to a third-party base_url (CR-04). An empty
+    string (e.g. .env.example's `GROQ_API_KEY=`) is falsy but not None, so
+    it takes the SDK's `api_key or ""` branch and fails later with a
+    misleading "Missing credentials" error instead - reject it here too.
+    """
+    env_var = f"{provider.upper()}_API_KEY"
+    key = os.getenv(env_var)
+    if not key or not key.strip():
+        base_url = PROVIDER_CONFIG[provider]["base_url"]
+        raise MissingProviderKeyError(
+            f"{env_var} is missing or empty; refusing to construct an LLM "
+            f"client for provider {provider!r} because the OpenAI SDK "
+            f"would otherwise fall back to an unrelated OPENAI_API_KEY and "
+            f"send it to {base_url}"
+        )
+    return key
+
+
 def get_client() -> OpenAI:
     """Build the single OpenAI-compatible client for the active provider.
 
     This is the ONLY function in the codebase that constructs an
     openai.OpenAI client (RAG-04) - base_url/api_key are swapped purely by
-    reading LLM_PROVIDER / {PROVIDER}_API_KEY env vars.
+    reading LLM_PROVIDER / {PROVIDER}_API_KEY env vars. A missing or empty
+    provider credential is a hard failure (MissingProviderKeyError) raised
+    before any client is constructed.
     """
     load_dotenv()
     provider, cfg = _resolve_provider()
-    return OpenAI(base_url=cfg["base_url"], api_key=os.getenv(f"{provider.upper()}_API_KEY"))
+    api_key = _require_api_key(provider)
+    return OpenAI(base_url=cfg["base_url"], api_key=api_key)
 
 
 def generate(prompt: str, system: str | None = None) -> LlmResult:
@@ -141,7 +194,15 @@ def generate(prompt: str, system: str | None = None) -> LlmResult:
         )
         record_llm_call_attributes(span, request_like, response_like)
 
-        answer = response.choices[0].message.content
+        if not response.choices:
+            raise EmptyCompletionError(
+                f"provider {provider!r} (model {cfg['model']!r}) returned a "
+                f"completion with no choices"
+            )
+        # message.content is None whenever finish_reason is content_filter
+        # or tool_calls - normalize so LlmResult.answer genuinely satisfies
+        # its str annotation and AskResponse can always serialize it.
+        answer = response.choices[0].message.content or ""
 
     logger.info("llm generation complete")
 

@@ -112,3 +112,77 @@ def test_generate_returns_assistant_message_text(monkeypatch, mock_openai_client
     result = llm_module.generate("What is the refund policy?")
 
     assert result.answer == "Mock answer from stubbed provider."
+
+
+def test_get_client_raises_when_provider_key_missing_and_never_falls_back_to_openai_key(
+    monkeypatch,
+):
+    """CR-04: a missing provider key must never let the SDK read OPENAI_API_KEY."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-unrelated-sentinel")
+
+    called = {"constructed": False}
+
+    def fake_openai(**kwargs):
+        called["constructed"] = True
+        return MagicMock()
+
+    monkeypatch.setattr(llm_module, "OpenAI", fake_openai)
+
+    with pytest.raises(llm_module.MissingProviderKeyError) as excinfo:
+        llm_module.get_client()
+
+    assert called["constructed"] is False
+    assert "sk-unrelated-sentinel" not in str(excinfo.value)
+
+
+def test_get_client_raises_when_provider_key_is_empty_string(monkeypatch):
+    """CR-04: .env.example's GROQ_API_KEY= (empty string) must also fail fast."""
+    monkeypatch.setenv("GROQ_API_KEY", "")
+
+    with pytest.raises(llm_module.MissingProviderKeyError):
+        llm_module.get_client()
+
+
+def test_generate_raises_typed_error_and_marks_chat_span_error_when_no_choices(
+    monkeypatch, in_memory_exporter
+):
+    """CR-03: an empty choices list must raise a typed error, not IndexError."""
+    empty_completion = MagicMock(
+        model="llama-3.1-8b-instant",
+        usage=MagicMock(input_tokens=5, output_tokens=0),
+        choices=[],
+    )
+    client = MagicMock()
+    client.chat.completions.create.return_value = empty_completion
+
+    monkeypatch.setattr(llm_module, "OpenAI", lambda **kwargs: client)
+    monkeypatch.setenv("GROQ_API_KEY", "test-groq-key")
+
+    with pytest.raises(llm_module.EmptyCompletionError):
+        llm_module.generate("What is the refund policy?")
+
+    spans = in_memory_exporter.get_finished_spans()
+    chat_spans = [s for s in spans if s.name == "chat"]
+    assert len(chat_spans) == 1
+    assert chat_spans[0].status.status_code.name == "ERROR"
+    assert "gen_ai.request.model" in chat_spans[0].attributes
+
+
+def test_generate_returns_empty_string_when_message_content_is_none(monkeypatch):
+    """CR-03: a None message.content must not violate the D-04 str contract."""
+    message = MagicMock(content=None)
+    choice = MagicMock(message=message)
+    completion = MagicMock(
+        model="llama-3.1-8b-instant",
+        usage=MagicMock(input_tokens=5, output_tokens=0),
+        choices=[choice],
+    )
+    client = MagicMock()
+    client.chat.completions.create.return_value = completion
+
+    monkeypatch.setattr(llm_module, "OpenAI", lambda **kwargs: client)
+    monkeypatch.setenv("GROQ_API_KEY", "test-groq-key")
+
+    result = llm_module.generate("What is the refund policy?")
+
+    assert result.answer == ""

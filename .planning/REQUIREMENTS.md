@@ -15,10 +15,10 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### RAG Service (RAG)
 
-- [x] **RAG-01**: A FastAPI `/ask` endpoint answers a support question by retrieving relevant docs from pgvector and generating an answer via the configured LLM provider
+- [ ] **RAG-01**: A FastAPI `/ask` endpoint answers a support question by retrieving relevant docs from pgvector and generating an answer via the configured LLM provider
 - [x] **RAG-02**: A synthetic support-doc corpus (50-200 authored docs) is seeded into PostgreSQL+pgvector using local `sentence-transformers` embeddings (no external embedding API)
-- [x] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
-- [x] **RAG-04**: The LLM client is a single OpenAI-compatible module that switches between Groq, Cerebras, and Gemini Flash via an environment variable, optionally routed through LiteLLM
+- [ ] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
+- [ ] **RAG-04**: The LLM client is a single OpenAI-compatible module that switches between Groq, Cerebras, and Gemini Flash via an environment variable, optionally routed through LiteLLM
 
 ### Failure Injection (FLAG)
 
@@ -124,10 +124,10 @@ Populated during roadmap creation.
 | TELE-01 | Phase 1 | Complete |
 | TELE-02 | Phase 1 | Complete |
 | TELE-03 | Phase 1 | Complete |
-| RAG-01 | Phase 2 | Complete |
+| RAG-01 | Phase 2 | Reopened |
 | RAG-02 | Phase 2 | Complete |
-| RAG-03 | Phase 2 | Complete |
-| RAG-04 | Phase 2 | Complete |
+| RAG-03 | Phase 2 | Reopened |
+| RAG-04 | Phase 2 | Needs human verification |
 | FLAG-01 | Phase 3 | Pending |
 | FLAG-02 | Phase 3 | Pending |
 | FLAG-03 | Phase 3 | Pending |
@@ -178,6 +178,11 @@ Populated during roadmap creation.
 - Mapped to phases: 50/50 ✓
 - Unmapped: 0 ✓
 
+**Reopened requirements** (2026-07-24, see `.planning/phases/02-rag-service-core/02-VERIFICATION.md`):
+
+- RAG-01 and RAG-03 were reopened because `POST /ask` returned HTTP 500 against the live database and only one of the three required GenAI spans was emitted. Gap-closure plans 02-05/02-06 have since fixed the pgvector adapter conflict and wired `setup_db_instrumentation()` — verified live: `POST /ask` returns 200 with grounded sources, and `scripts/probe_ask_spans.py` proves all three GenAI spans plus the SQLAlchemy `SELECT` span are emitted on a real request (25/25 tests passing, including 3 live-DB integration tests). They close again only on a passing re-verification of Phase 2 — not merely by the gap-closure plans landing.
+- RAG-04 was moved to needs-human-verification because no provider credential exists in this environment, so no live third-party call could be made. Client construction is proven for all three providers, and 02-07's `MissingProviderKeyError` guard now fails fast on a missing/empty key instead of leaking an ambient `OPENAI_API_KEY`. It closes when a human performs **HV-1**, the provider-switch check defined in `.planning/phases/02-rag-service-core/02-07-PLAN.md`.
+
 ---
 *Requirements defined: 2026-07-20*
-*Last updated: 2026-07-20 after roadmap creation (traceability populated, requirement count corrected 51->50)*
+*Last updated: 2026-07-24 — RAG-01/RAG-03 reopened and RAG-04 moved to needs-human-verification per 02-VERIFICATION.md, gap-closure applied (02-05..02-07). Roadmap-creation update: 2026-07-20 (traceability populated, requirement count corrected 51->50).*
