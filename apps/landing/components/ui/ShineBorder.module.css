@@ -1,0 +1,76 @@
+.border {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  padding: 1px;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.72;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.shine {
+  position: absolute;
+  inset: -145%;
+  background: conic-gradient(from 0deg,
+      transparent 0 38%,
+      var(--shine-from) 45%,
+      var(--shine-mid) 50%,
+      var(--shine-to) 55%,
+      transparent 62% 100%);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.evidence,
+.observe {
+  --shine-from: var(--blue);
+  --shine-mid: var(--cyan);
+  --shine-to: var(--violet);
+}
+
+.signal {
+  --shine-from: var(--coral);
+  --shine-mid: var(--blue);
+  --shine-to: var(--violet);
+}
+
+.policy,
+.govern {
+  --shine-from: var(--coral);
+  --shine-mid: var(--violet);
+  --shine-to: var(--blue);
+}
+
+.reason {
+  --shine-from: var(--violet);
+  --shine-mid: var(--cyan);
+  --shine-to: var(--blue);
+}
+
+.telemetry {
+  --shine-from: var(--blue);
+  --shine-mid: var(--violet);
+  --shine-to: var(--acid);
+}
+
+.verified {
+  --shine-from: var(--acid);
+  --shine-mid: var(--cyan);
+  --shine-to: var(--blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .border {
+    opacity: 0.42;
+  }
+
+  .shine {
+    will-change: auto;
+  }
+}

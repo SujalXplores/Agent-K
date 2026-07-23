@@ -1,0 +1,68 @@
+.host {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.84;
+  contain: strict;
+}
+
+.host canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 74% 27%, color-mix(in srgb, var(--blue) 9%, transparent), transparent 30%),
+    radial-gradient(circle at 78% 62%, color-mix(in srgb, var(--violet) 7%, transparent), transparent 34%);
+  opacity: 0.62;
+}
+
+.host::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(90deg, var(--paper) 0%, transparent 34%, transparent 80%, var(--paper) 100%),
+    linear-gradient(180deg, transparent 0%, transparent 82%, var(--paper) 100%);
+  opacity: 0.58;
+}
+
+:global(html[data-theme='dark']) .host {
+  opacity: 0.94;
+}
+
+:global(html[data-theme='dark']) .host::after {
+  opacity: 0.34;
+}
+
+@media (max-width: 1180px) {
+  .host {
+    opacity: 0.68;
+  }
+
+  .host::after {
+    opacity: 0.72;
+  }
+}
+
+@media (max-width: 820px),
+(prefers-reduced-motion: reduce) {
+  .host {
+    opacity: 0.42;
+  }
+
+  .ambient {
+    opacity: 0.44;
+  }
+}
+
+:global(#main-content > section),
+:global(body > footer) {
+  position: relative;
+  z-index: 1;
+}

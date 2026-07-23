@@ -9,12 +9,10 @@
   overflow: hidden;
   place-items: center;
   color: var(--ink);
-  background-color: var(--paper-raised);
-  background-image: radial-gradient(
-    ellipse 70% 60% at 50% 100%,
-    color-mix(in srgb, var(--blue) 14%, transparent),
-    transparent 70%
-  );
+  background-color: color-mix(in srgb, var(--paper-raised) 90%, transparent);
+  background-image: radial-gradient(ellipse 70% 60% at 50% 100%,
+      color-mix(in srgb, var(--blue) 14%, transparent),
+      transparent 70%);
   box-shadow: var(--shadow-xl);
 }
 
@@ -94,7 +92,7 @@
   text-wrap: balance;
 }
 
-.content > div > p {
+.content>div>p {
   max-width: 620px;
   margin: 32px auto 0;
   font-size: 1.1875rem;

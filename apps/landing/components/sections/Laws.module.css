@@ -1,7 +1,7 @@
 .section {
   position: relative;
   color: #ebebf0;
-  background: #0c0c0e;
+  background: color-mix(in srgb, #0c0c0e 90%, transparent);
   overflow: hidden;
 }
 
@@ -10,11 +10,9 @@
   inset: 0;
   pointer-events: none;
   content: '';
-  background: radial-gradient(
-    ellipse 80% 60% at 50% 0%,
-    color-mix(in srgb, var(--blue) 14%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(ellipse 80% 60% at 50% 0%,
+      color-mix(in srgb, var(--blue) 14%, transparent),
+      transparent 70%);
 }
 
 .glow {
@@ -25,11 +23,9 @@
   width: 60%;
   height: 60%;
   pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    color-mix(in srgb, var(--violet) 18%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(ellipse at center,
+      color-mix(in srgb, var(--violet) 18%, transparent),
+      transparent 70%);
   filter: blur(80px);
 }
 
@@ -139,7 +135,7 @@
   letter-spacing: -0.035em;
 }
 
-.card > p {
+.card>p {
   position: relative;
   z-index: 1;
   margin-top: 22px;
@@ -235,6 +231,6 @@
   font-size: 0.875rem;
 }
 
-.card > p {
+.card>p {
   font-size: 1rem;
 }

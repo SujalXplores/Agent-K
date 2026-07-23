@@ -11,7 +11,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [],
   },
   experimental: {
-    optimizePackageImports: ["lucide-react", "motion"],
+    optimizePackageImports: [
+      "@react-three/drei",
+      "lucide-react",
+      "motion",
+    ],
   },
   // Long-term caching for static assets with hashed filenames
   async headers() {

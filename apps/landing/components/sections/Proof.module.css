@@ -9,6 +9,7 @@
 }
 
 .board {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-2xl);
@@ -127,7 +128,7 @@
   transform: rotate(-18deg);
 }
 
-.confidenceDisc > span {
+.confidenceDisc>span {
   font-size: 1rem;
   font-weight: 850;
   transform: rotate(18deg);
@@ -138,12 +139,12 @@
   font-size: 0.55rem;
 }
 
-.confidenceRow > div:last-child span,
-.confidenceRow > div:last-child strong {
+.confidenceRow>div:last-child span,
+.confidenceRow>div:last-child strong {
   display: block;
 }
 
-.confidenceRow > div:last-child span {
+.confidenceRow>div:last-child span {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.52rem;
@@ -151,7 +152,7 @@
   text-transform: uppercase;
 }
 
-.confidenceRow > div:last-child strong {
+.confidenceRow>div:last-child strong {
   margin-top: 4px;
   font-size: 0.76rem;
 }
@@ -164,7 +165,7 @@
   background: var(--console);
 }
 
-.queryBox > div {
+.queryBox>div {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -184,11 +185,11 @@
   overflow-wrap: anywhere;
 }
 
-.evidencePanel > .microLabel {
+.evidencePanel>.microLabel {
   margin-bottom: 18px;
 }
 
-.evidencePanel li + li {
+.evidencePanel li+li {
   margin-top: 9px;
 }
 
@@ -322,7 +323,7 @@
   align-items: center;
 }
 
-.actionRecord > svg {
+.actionRecord>svg {
   width: 30px;
   color: var(--coral);
   stroke-width: 1.6;
@@ -361,7 +362,7 @@
   align-items: center;
 }
 
-.verificationCopy > strong {
+.verificationCopy>strong {
   display: block;
   margin-top: 17px;
   font-size: 1.5rem;
@@ -439,7 +440,9 @@
 }
 
 .contract {
+  position: relative;
   display: grid;
+  overflow: hidden;
   margin-top: 70px;
   padding: 40px;
   border-radius: var(--radius-2xl);
@@ -451,7 +454,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.contractIntro > span {
+.contractIntro>span {
   color: var(--acid);
   font-family: var(--font-sans);
   font-size: 0.875rem;
@@ -564,13 +567,13 @@
 .microLabel,
 .boardHeader p,
 .completeStatus,
-.confidenceRow > div:last-child span,
+.confidenceRow>div:last-child span,
 .evidencePanel small,
 .resolved,
 .verdict,
 .policyList li,
 .actionRecord small,
-.contractIntro > span,
+.contractIntro>span,
 .contract dd {
   font-size: 0.75rem;
 }
@@ -580,7 +583,7 @@
 }
 
 .confidenceDisc small,
-.queryBox > div,
+.queryBox>div,
 .evidenceType,
 .chartScale,
 .rollbackMarker span,
@@ -588,7 +591,7 @@
   font-size: 0.625rem;
 }
 
-.confidenceRow > div:last-child strong,
+.confidenceRow>div:last-child strong,
 .queryBox code,
 .evidencePanel strong,
 .verificationCopy p,
@@ -596,13 +599,13 @@
   font-size: 0.875rem;
 }
 
-.queryBox > div,
+.queryBox>div,
 .contractIntro p,
 .contract dd {
   color: rgba(245, 245, 247, 0.74);
 }
 
-.evidenceRecord > span:last-child {
+.evidenceRecord>span:last-child {
   min-width: 0;
   overflow-wrap: anywhere;
 }

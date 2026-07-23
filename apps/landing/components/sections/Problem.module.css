@@ -72,6 +72,7 @@
 }
 
 .signalBoard {
+  position: relative;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-2xl);
   background: var(--paper-raised);
