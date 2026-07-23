@@ -1,0 +1,4 @@
+VERSION_ENDPOINT: STATUS=200 TYPE=application/json
+{"version":"v0.132.2","ee":"Y","setupCompleted":true}
+HEALTH_ENDPOINT: STATUS=200 TYPE=application/json
+{"status":"ok"}

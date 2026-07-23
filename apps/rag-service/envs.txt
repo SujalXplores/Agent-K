@@ -1,0 +1,1 @@
+["SIGNOZ_SQLSTORE_POSTGRES_DSN=postgres://signoz:signoz@signoz-metastore-postgres-0:5432/signoz?sslmode=disable","SIGNOZ_SQLSTORE_PROVIDER=postgres","SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://signoz-telemetrystore-clickhouse-0-0:9000","SIGNOZ_TELEMETRYSTORE_PROVIDER=clickhouse","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
