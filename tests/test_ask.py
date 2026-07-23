@@ -1,8 +1,11 @@
 """Offline (mocked, no DB, no network, no API key) tests for POST /ask.
 
-Covers D-04 (response contract), RAG-03/D-07 (exactly three GenAI-
-instrumented spans per call: rag.retrieval, rag.prompt_construction, chat),
-and input-bounds validation (T-02-INPUT/T-02-DoS).
+Covers D-04 (response contract), RAG-03/D-07 (the three application-scoped
+GenAI-instrumented spans per call: rag.retrieval, rag.prompt_construction,
+chat), and input-bounds validation (T-02-INPUT/T-02-DoS). The production
+span set - including the FastAPI framework spans and the SQLAlchemy DB
+span - is measured by scripts/probe_ask_spans.py and asserted in
+tests/test_integration_rag.py, not here (see the span-count note below).
 """
 
 import app.llm as llm_module
@@ -45,7 +48,19 @@ def test_ask_produces_exactly_three_genai_spans(
     assert span_names.count("rag.retrieval") == 1
     assert span_names.count("rag.prompt_construction") == 1
     assert span_names.count("chat") == 1
-    assert len(spans) == 3
+
+    # FastAPIInstrumentor binds its tracer at instrument_app() time, which
+    # happens when app.main is imported - before this fixture monkeypatches
+    # the provider - so its framework spans (and the SQLAlchemy DB span)
+    # never reach this exporter. A total span count here would therefore
+    # measure an accident of import timing, not production: a real /ask
+    # emits 7 spans without DB instrumentation and 9 with it (see
+    # scripts/probe_ask_spans.py + tests/test_integration_rag.py, which
+    # measure the real set in a fresh process). This fixture can only ever
+    # observe application-scoped spans, so assert exactly that.
+    app_spans = [s for s in spans if s.instrumentation_scope.name in ("app.rag", "app.llm")]
+    assert len(app_spans) == 3
+    assert {s.name for s in app_spans} == {"rag.retrieval", "rag.prompt_construction", "chat"}
 
     retrieval_span = next(s for s in spans if s.name == "rag.retrieval")
     prompt_span = next(s for s in spans if s.name == "rag.prompt_construction")

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import llm as llm_module
 from app import rag as rag_module
-from app.db import get_session
+from app.db import get_session, setup_db_instrumentation
 from app.schemas import AskRequest, AskResponse, Source
 from app.telemetry import setup_telemetry
 
@@ -68,7 +68,13 @@ setup_telemetry()
 # 4. Instrument the app AFTER routes are registered.
 FastAPIInstrumentor.instrument_app(app)
 
-# 5. Correlate stdlib logging records with active trace/span context.
+# 5. Instrument the sync core beneath the async engine so every retrieval
+#    query emits a free DB span underneath the hand-written rag.retrieval
+#    span (D-07). Without this call SQLAlchemyInstrumentor never activates
+#    and the free DB span is silently absent (02-VERIFICATION.md gap 3).
+setup_db_instrumentation()
+
+# 6. Correlate stdlib logging records with active trace/span context.
 LoggingInstrumentor().instrument(set_logging_format=True)
 
 logging.getLogger(__name__).info("agent-k-rag-service telemetry skeleton started")
