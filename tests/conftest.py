@@ -1,11 +1,14 @@
-"""Shared pytest fixtures for offline (mocked) app.llm tests.
+"""Shared pytest fixtures for offline (mocked) app.llm / app.rag / /ask tests.
 
-Extended later by 02-04 for retrieval/rag tests.
+Extended in 02-04 with retrieval fixtures (stub_documents, fake_session) and
+a FastAPI TestClient fixture (client) with get_session overridden, so
+tests/test_rag.py and tests/test_ask.py never touch a real database.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi.testclient import TestClient
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -50,3 +53,76 @@ def mock_openai_client():
     client = MagicMock()
     client.chat.completions.create.return_value = completion
     return client
+
+
+@pytest.fixture
+def stub_documents():
+    """Three stub Document-like rows standing in for a real pgvector result.
+
+    Plain MagicMocks (not real ORM instances) exposing exactly the
+    attributes app/rag.py and the /ask handler read: doc_id, title, body.
+    """
+
+    def _doc(doc_id: str, title: str, body: str):
+        stub = MagicMock()
+        stub.doc_id = doc_id
+        stub.title = title
+        stub.body = body
+        return stub
+
+    return [
+        _doc(
+            "doc-billing-01",
+            "Updating Your Billing Address",
+            "To update your billing address, go to Settings > Billing and edit "
+            "the address on file. Changes apply to your next invoice.",
+        ),
+        _doc(
+            "doc-auth-02",
+            "Rotating API Keys",
+            "You can rotate an API key from the Developer console under API Keys. "
+            "Rotating a key immediately invalidates the previous one.",
+        ),
+        _doc(
+            "doc-security-03",
+            "Managing Team Permissions",
+            "Admins can manage per-seat permissions under Security > Team Roles.",
+        ),
+    ]
+
+
+@pytest.fixture
+def fake_session(stub_documents):
+    """A fake AsyncSession whose execute() resolves to stub_documents.
+
+    Mirrors the real AsyncSession.execute(stmt) -> result.scalars().all()
+    shape used by app/rag.py's retrieve(), with no real DB connection.
+    """
+    scalars_result = MagicMock()
+    scalars_result.all.return_value = stub_documents
+    execute_result = MagicMock()
+    execute_result.scalars.return_value = scalars_result
+
+    session = MagicMock()
+    session.execute = AsyncMock(return_value=execute_result)
+    return session
+
+
+@pytest.fixture
+def client(fake_session):
+    """FastAPI TestClient with app.db.get_session overridden to a fake session.
+
+    Imports app.main lazily (inside the fixture body, not at module import
+    time) so tests that only need app.rag/app.llm fixtures above never pay
+    the cost of importing the full app (and its setup_telemetry() call).
+    """
+    from app.db import get_session
+    from app.main import app as fastapi_app
+
+    async def _override_get_session():
+        yield fake_session
+
+    fastapi_app.dependency_overrides[get_session] = _override_get_session
+    with TestClient(fastapi_app) as test_client:
+        yield test_client
+    fastapi_app.dependency_overrides.clear()

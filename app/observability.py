@@ -28,6 +28,7 @@ from opentelemetry.trace import Span
 # --- rag.* custom attribute-name constants (consumed by app/rag.py, 02-04) ---
 RAG_RETRIEVAL_TOP_K = "rag.retrieval.top_k"
 RAG_RETRIEVAL_DOC_COUNT = "rag.retrieval.doc_count"
+RAG_PROMPT_DOC_COUNT = "rag.prompt_construction.doc_count"
 
 # --- gen_ai.* stable semantic-convention attribute-name constants ---
 GEN_AI_SYSTEM = "gen_ai.system"
