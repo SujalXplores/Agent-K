@@ -55,6 +55,7 @@ Recent decisions affecting current work:
 
 - [Roadmap]: 7-phase horizontal-layer structure (per research SUMMARY.md), phases execute in strict dependency order except Phase 4 (MCP), which is parallelizable with Phases 2-3 but must land before Phase 5.
 - [Roadmap]: DASH-01/02/05 (Service Health, Incident Context, Alerts) placed in Phase 3 (data exists once RAG+failure-injection exist); DASH-03/04 (Agent Health, Action Audit Trail) deferred to Phase 7 (data doesn't exist until Agent K/Law 2 are built).
+- [Rollback mechanism]: Rollback now executes via a separate, privilege-isolated `deployer` sidecar (sole Docker-socket holder, one authenticated `POST /rollback`, hardcoded target/command, concurrency lock) instead of Agent K editing docker-compose directly on the host. Agent K never holds the Docker socket — its worst-case blast radius is one HTTP call. Adopted from the `main` branch plan for a structurally-enforced (not convention-based) Law 2 sandbox. The sidecar has no dependency on the agent pipeline, so its skeleton can be scaffolded early to de-risk it. Updated across PROJECT.md (req + Key Decision), REQUIREMENTS.md (LAW2-03/04), ROADMAP.md (Phase 6), and all four research docs.
 
 ### Pending Todos
 

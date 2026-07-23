@@ -49,15 +49,15 @@ Two independent OS processes on one host, coupled only through SigNoz (telemetry
 2. Agent K state machine (`agent-k/app/statemachine/`) — RECEIVED→INVESTIGATING→HYPOTHESIZING→POLICY_CHECK→(ACTING|REPORTING)→VERIFYING→REPORTED, the only control-flow authority
 3. MCP client wrapper (`mcp_client.py`) — single call-site for all SigNoz evidence queries, spans + loop-hashes every call
 4. Policy module (`policy.py`) — pure function, allowlist/SLO/cooldown/confidence/deployment-relatedness checks, unit-testable with zero mocking
-5. Rollback executor (`rollback.py`) — edits docker-compose.yml via PyYAML, `docker compose up -d` (never `restart`), post-recreate health check, deployment marker, re-query for recovery
+5. Action caller (`action_caller.py`) + `deployer` sidecar — Agent K makes one authenticated `POST /rollback` (no image ref, no Docker access); the privilege-isolated deployer sidecar (sole Docker-socket holder) edits docker-compose.yml via PyYAML, runs `docker compose up -d --force-recreate` (never `restart`), does a post-recreate health check, emits the deployment marker; Agent K then re-queries for recovery
 6. Report Store + HTML renderer — structured RCA JSON with evidence-link checker enforced at render time, served as `/report/{id}`
 
 ### Critical Pitfalls
 
 1. **SigNoz/ClickHouse starves on default Docker Desktop memory (2GB)** — bump to 6-8GB and confirm bare SigNoz + a synthetic trace on Day 1, before any app code.
 2. **Traces silently never reach SigNoz** (wrong OTLP port/protocol, or instrumentation never fired) — always debug via console-exporter first, then switch to OTLP; keep the console-exporter toggle available for the whole build.
-3. **`docker compose restart` doesn't pick up compose-file changes** — rollback executor must always use `up -d <service>` (recreate) and explicitly verify post-recreate container health before re-querying SigNoz for recovery.
-4. **Mounting the Docker socket into a containerized Agent K grants host root**, directly undercutting the "sandboxed single action" claim — run Agent K as a host process instead, or document the containerized sandbox honestly as code-level only.
+3. **`docker compose restart` doesn't pick up compose-file changes** — the deployer sidecar must always use `up -d --force-recreate <service>` (recreate) and explicitly verify post-recreate container health before Agent K re-queries SigNoz for recovery.
+4. **Giving Agent K the Docker socket grants host root**, directly undercutting the "sandboxed single action" claim — route rollback through the deployer sidecar (sole socket holder, one authenticated hardcoded endpoint) so Agent K never holds the socket and its worst-case blast radius is a single HTTP call.
 5. **Loop-breaker/cost-watchdog built last and never forced to fire** — build them alongside the first working investigation loop, and write at least one adversarial test that actually triggers each guardrail before eval day.
 
 ## Implications for Roadmap
@@ -93,8 +93,8 @@ Based on research (especially ARCHITECTURE.md's "Suggested Build Order" and PITF
 
 ### Phase 6: Policy Gate + Rollback Executor (Law 2)
 **Rationale:** Requires a stable evidence/confidence shape from Phase 5; architecturally this is where the "one team member unavailable" scheduling risk bites hardest, so the policy schema should be drafted early.
-**Delivers:** Pure-function policy module (allowlist/SLO/cooldown/confidence/deployment-relatedness), rollback executor using `docker compose up -d` with PyYAML edits, post-recreate health verification, verified-outcome recheck.
-**Avoids:** Pitfall 5 (`restart` vs `up -d`), Pitfall 6 (Docker socket privilege escalation — decide host-process vs. containerized Agent K here).
+**Delivers:** Pure-function policy module (allowlist/SLO/cooldown/confidence/deployment-relatedness), Agent K action caller (one authenticated `POST /rollback`, no Docker access), and the privilege-isolated `deployer` sidecar (sole Docker-socket holder) doing `docker compose up -d --force-recreate` with PyYAML edits, concurrency lock, post-recreate health verification; Agent K does the verified-outcome recheck. The sidecar skeleton can be scaffolded earlier since it has no dependency on Agent K's reasoning pipeline.
+**Avoids:** Pitfall 5 (`restart` vs `up -d`), Pitfall 6 (Docker socket privilege escalation — the deployer sidecar isolation is the mitigation).
 
 ### Phase 7: Report Page + Dashboard Polish + Evaluation Harness
 **Rationale:** Terminal dependency — consumes artifacts (reports, telemetry) that only exist once Phases 1-6 work; the evaluation harness's rate-limit behavior must be tested before eval day, not on it.
@@ -103,7 +103,7 @@ Based on research (especially ARCHITECTURE.md's "Suggested Build Order" and PITF
 
 ### Phase Ordering Rationale
 
-- Telemetry-first ordering follows directly from ARCHITECTURE.md's dependency chain: SigNoz → RAG app → failure injection → dashboard/alerts → MCP → Agent K loop → policy/action → report/eval. Every later phase depends on an earlier one having working telemetry to query or act against.
+- Telemetry-first ordering follows directly from ARCHITECTURE.md's dependency chain: SigNoz → RAG app → failure injection → dashboard/alerts → MCP → Agent K loop → policy/action (deployer sidecar) → report/eval. Every later phase depends on an earlier one having working telemetry to query or act against. The deployer sidecar is the one action-phase component with no dependency on the agent pipeline, so its skeleton can be pulled forward to de-risk it.
 - Law 1 (evidence) must precede Law 2 (policy) because the policy module gates on evidence/confidence data that doesn't exist until Law 1's schema is built — this is a hard dependency per FEATURES.md's dependency graph, not a scheduling preference.
 - Infra-heavy phases (1, 3, 4) get disproportionate time buffer relative to their apparent size because the team has zero prior Docker/OTel/SigNoz experience (Pitfall 11) — this should be reflected explicitly in day allocations, not just phase ordering.
 - Guardrails (loop breaker, cost watchdog) are folded into Phase 5 rather than deferred to a later phase specifically to avoid Pitfall 9 (safety code built last and never verified to actually fire).
@@ -114,7 +114,7 @@ Phases likely needing deeper research during planning:
 - **Phase 1 (Telemetry Foundation):** SigNoz Foundry/OTLP setup specifics were only web-search verified (LOW-MEDIUM confidence in STACK/PITFALLS) — confirm exact port/protocol/env-var behavior against the installed Foundry version before building.
 - **Phase 4 (MCP Integration):** exact SigNoz MCP tool names/signatures and transport-mode config were only cross-verified across 2 sources; verify against the installed `signoz/signoz-mcp-server` version at build time (also confirm it's v0.118.0+ for alert-history tools per ARCHITECTURE.md).
 - **Phase 5 (Agent K Core Loop):** GenAI semantic-convention attribute names are still experimental/evolving (PITFALLS.md Pitfall 3) — recheck the current OTel GenAI semconv registry before finalizing the shared attribute helper.
-- **Phase 6 (Rollback Executor):** Docker-socket-vs-host-process architecture decision has security implications not obvious to a Docker-inexperienced team — worth explicit research/discussion before implementation, not just a code review catch.
+- **Phase 6 (Policy Gate + Rollback Executor):** the deployer sidecar's isolation boundary (sole socket holder, hardcoded target service/command, auth token, no image ref from caller, concurrency lock) has security implications not obvious to a Docker-inexperienced team — worth explicit research/discussion before implementation, not just a code review catch.
 
 Phases with standard patterns (skip research-phase):
 - **Phase 2 (RAG Service Core):** FastAPI+pgvector+SQLAlchemy is a well-documented, HIGH-confidence (PyPI-verified) pattern.

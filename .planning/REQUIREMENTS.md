@@ -60,8 +60,8 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 - [ ] **LAW2-01**: A code-based policy module checks SLO/burn-rate breach, allowlist membership, cooldown period, confidence threshold, deployment-related cause, and sandbox scope before any action — with zero LLM involvement in the allow/deny decision
 - [ ] **LAW2-02**: The action allowlist contains exactly one action: rollback to the previous application version
-- [ ] **LAW2-03**: When approved, the rollback executor edits the monitored app's `docker-compose.yml`/`.env` image tag and runs `docker compose up -d` (never `restart`) from Agent K's host process, capturing the pre-mutation image tag first
-- [ ] **LAW2-04**: After a rollback executes, Agent K creates a SigNoz deployment marker, waits, re-queries SigNoz to verify recovery, and records the verified outcome
+- [ ] **LAW2-03**: A separate, dependency-light `deployer` sidecar is the sole holder of the Docker socket and exposes exactly one authenticated endpoint (`POST /rollback`) — Agent K never holds the Docker socket; when a rollback is approved, Agent K makes one authenticated HTTP call to that endpoint carrying no image reference (the sidecar itself determines the previous known-good tag), and the sidecar runs `docker compose up -d --force-recreate` (never `restart`) after capturing the pre-mutation image tag, guarded by a concurrency lock (returns 409 if a rollback is already in flight)
+- [ ] **LAW2-04**: On rollback the deployer sidecar creates a SigNoz deployment marker; Agent K then waits, re-queries SigNoz to verify recovery, and records the verified outcome
 - [ ] **LAW2-05**: When any safety check fails, Agent K takes no action and instead produces an evidence-linked recommendation for a human
 - [ ] **LAW2-06**: Every policy decision (requested action, incident ID, SLO value, threshold, confidence, allowlist result, cooldown result, final verdict, reason) is recorded as a telemetry span
 - [ ] **LAW2-07**: Across the four seeded incidents, exactly two produce an approved rollback (prompt-regression, retry-storm) and two produce a denied verdict (retrieval-latency, DB-pool-exhaustion)
@@ -113,7 +113,7 @@ None — scope is fully locked for this hackathon milestone; there is no deferre
 | Agent orchestration frameworks (LangGraph, PydanticAI, etc.) | Plain Python state machine chosen for full control over Law enforcement; team has zero prior agent-framework experience |
 | Real/production support data or PII | Synthetic authored corpus only — avoids licensing/privacy concerns |
 | Active human paging/notification on escalation | Passive-only (report/dashboard reflects incomplete state) — no notification channel budget or time in 7 days |
-| Docker socket mounted into a containerized Agent K | Grants effective host root and undercuts the "sandboxed single-action" Law 2 claim; Agent K runs as a host process instead |
+| Docker socket mounted into Agent K | Grants effective host root and undercuts the "sandboxed single-action" Law 2 claim; the `deployer` sidecar is the sole Docker-socket holder and Agent K reaches it only via one authenticated HTTP call |
 
 ## Traceability
 
