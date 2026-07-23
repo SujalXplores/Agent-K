@@ -83,7 +83,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 6** *(gap closure — blocked on 02-05 + 02-06)*
 
-- [ ] 02-07-PLAN.md — fail fast on a missing provider key (CR-04), guard the empty-choices completion accessor (CR-03), reopen RAG-01/RAG-03 in the ledger, and collect the two human-verification items [RAG-03/04]
+- [ ] 02-07-PLAN.md — fail fast on a missing provider key (CR-04), guard the empty-choices completion accessor (CR-03), reopen RAG-01/RAG-03 and mark RAG-04 needs-human in the ledger, and collect the two human-verification items [RAG-03/04]
 
 ### Phase 3: Failure Injection + Dashboard + Alerting
 
