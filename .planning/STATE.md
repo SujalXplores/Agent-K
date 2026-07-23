@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: rag-service-core
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-07-23T19:58:16.353Z"
+stopped_at: "Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)"
+last_updated: "2026-07-23T20:05:35.495Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 02 execution resumed (wave continue)
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 14
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 02 (rag-service-core) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-23 — Phase 02 execution resumed (wave continue)
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 25min | 3 tasks | 3 files |
 | Phase 01 P03 | 52min | 3 tasks | 4 files |
 | Phase 02 P03 | 6min | 2 tasks | 4 files |
+| Phase 02 P01 | 62min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01]: SigNoz's OTLP receivers never bind on a freshly-cast stack until first-run admin/org setup completes (POST /api/v1/register) - documented in SIGNOZ-RUNBOOK.md sec 1.5 as a required step for every fresh rebuild
 - [Phase 01]: FastAPI route handlers must call logging.getLogger(__name__).info(...) explicitly to emit a trace-correlated log record - uvicorn's own access log does not propagate to the OTel-instrumented root logger
 - [Phase 02]: Single record_llm_call_attributes helper (app/observability.py) is the sole source of truth for gen_ai.*/agentk.*/rag.* attribute names, reused unchanged by Phase 5 self-telemetry — Prevents attribute-name drift breaking Phase 3/7 dashboard queries (D-06)
+- [Phase 02]: Added greenlet==3.5.4 pin - SQLAlchemy async engine requires it for Alembic's async_engine_from_config bridge, was missing from requirements.txt
+- [Phase 02]: rag-postgres (pgvector/pgvector:pg16) live with vector extension + documents table (vector(384)) applied via Alembic migration 0001, unblocking 02-02 corpus seeding
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T19:58:16.350Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-07-23T20:05:35.491Z
+Stopped at: Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)
 Resume file: None
