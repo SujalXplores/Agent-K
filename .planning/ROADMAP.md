@@ -58,7 +58,20 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every `/ask` call produces distinct retrieval, prompt-construction, and generation spans in SigNoz carrying GenAI semantic-convention attributes.
   4. Switching the LLM provider env var (Groq / Cerebras / Gemini Flash) changes which provider serves requests with no code change.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — pgvector Postgres container + async SQLAlchemy engine + Document model + applied Alembic migration + local embedding module [RAG-01/02 substrate]
+- [ ] 02-03-PLAN.md — single OpenAI-compatible LLM client (env-var provider switch) + shared gen_ai telemetry helper [RAG-03/04]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 02-02-PLAN.md — synthetic 50-200 doc corpus + idempotent local-embedding seed into pgvector [RAG-02]
+
+**Wave 3** *(blocked on 02-02 + 02-03)*
+
+- [ ] 02-04-PLAN.md — POST /ask endpoint (retrieval + grounded prompt + generation, three GenAI spans, {answer, sources}) [RAG-01/03]
 
 ### Phase 3: Failure Injection + Dashboard + Alerting
 
@@ -143,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
-| 2. RAG Service Core | 0/TBD | Not started | - |
+| 2. RAG Service Core | 0/4 | Planned | - |
 | 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |
