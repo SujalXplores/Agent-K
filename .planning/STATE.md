@@ -4,15 +4,15 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: rag-service-core
-status: verifying
-stopped_at: Phase 02 verification found 3 gaps (pgvector codec/type conflict breaks /ask; DB instrumentation never enabled) — see 02-VERIFICATION.md
+status: planning
+stopped_at: Phase 02 gap-closure planned — 02-05..02-07 ready to execute (waves 4-6)
 last_updated: "2026-07-24T00:00:00.000Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 02 executed 4/4 plans; verification returned gaps_found
+last_activity_desc: Phase 02 gap-closure plans 02-05..02-07 created and verified (plan-checker PASSED)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 7
+  total_plans: 10
   completed_plans: 7
   percent: 14
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 02 (rag-service-core) — GAPS FOUND
-Plan: 4 of 4 executed
-Status: Verification failed 3 of 15 must-haves — phase NOT complete. Next: /gsd-plan-phase 2 --gaps
-Last activity: 2026-07-24 — Phase 02 executed 4/4 plans; verification returned gaps_found
+Phase: 02 (rag-service-core) — GAP CLOSURE PLANNED
+Plan: 4 of 7 executed (02-05, 02-06, 02-07 pending — waves 4-6)
+Status: Verification failed 3 of 15 must-haves; gap-closure plans created and plan-checker PASSED. Next: /gsd-execute-phase 2
+Last activity: 2026-07-24 — Phase 02 gap-closure plans 02-05..02-07 created and verified
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -101,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T20:29:05.863Z
-Stopped at: Phase 02 verification found 3 gaps — see .planning/phases/02-rag-service-core/02-VERIFICATION.md
+Last session: 2026-07-24T02:55:00.000Z
+Stopped at: Phase 02 gap-closure planned (02-05..02-07) — gaps documented in .planning/phases/02-rag-service-core/02-VERIFICATION.md
 Resume file: 
