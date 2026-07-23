@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: rag-service-core
-status: executing
-stopped_at: "Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)"
-last_updated: "2026-07-23T20:17:19.347Z"
+status: verifying
+stopped_at: Completed 02-04-PLAN.md (Phase 2 code-complete, pending end-of-phase human verification)
+last_updated: "2026-07-23T20:29:05.867Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 02 execution resumed (wave continue)
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 14
+  completed_plans: 7
+  percent: 29
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 02 (rag-service-core) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-23 — Phase 02 execution resumed (wave continue)
 
 Progress: [░░░░░░░░░░] 0%
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P03 | 6min | 2 tasks | 4 files |
 | Phase 02 P01 | 62min | 3 tasks | 9 files |
 | Phase 02 P02 | 9min | 2 tasks | 3 files |
+| Phase 02 P04 | 12min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 02]: rag-postgres (pgvector/pgvector:pg16) live with vector extension + documents table (vector(384)) applied via Alembic migration 0001, unblocking 02-02 corpus seeding
 - [Phase 02]: Corpus authored via a one-off (non-committed) Python generator script producing 72 real hand-authored docs for fictional B2B SaaS product Flowdeck, across the six D-01 topic areas with D-02 length variety
 - [Phase 02]: Seed script idempotency implemented as delete-all-then-insert inside one transaction (corpus-on-disk is source of truth), not ON CONFLICT upsert
+- [Phase 02]: POST /ask wired end-to-end (retrieve -> build_prompt -> generate), emitting exactly three GenAI-instrumented spans (rag.retrieval, rag.prompt_construction, chat) per call — Completes RAG-01/RAG-03 - the phase's headline deliverable; tracer acquired fresh per-call (not cached at import) in app/rag.py to keep test isolation working, mirroring app/llm.py's established pattern
 
 ### Pending Todos
 
@@ -99,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T20:17:19.343Z
-Stopped at: Completed 02-01-PLAN.md (Task 3: migration applied to live rag-postgres)
-Resume file: None
+Last session: 2026-07-23T20:29:05.863Z
+Stopped at: Completed 02-04-PLAN.md (Phase 2 code-complete, pending end-of-phase human verification)
+Resume file: 

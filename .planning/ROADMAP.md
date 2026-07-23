@@ -16,7 +16,7 @@ Agent K ships as a small set of coupled processes — the monitored RAG app, Age
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Telemetry Foundation** - Stand up self-hosted SigNoz via Foundry and confirm a minimal service's traces/metrics/logs actually arrive in the UI (completed 2026-07-23)
-- [ ] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces
+- [x] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces (completed 2026-07-23)
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
 - [ ] **Phase 5: Agent K Core Loop** - Build the investigation state machine with Law 1 (evidence-backed claims) and Law 3 (self-telemetry, loop breaker, cost watchdog) instrumented inline
@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every `/ask` call produces distinct retrieval, prompt-construction, and generation spans in SigNoz carrying GenAI semantic-convention attributes.
   4. Switching the LLM provider env var (Groq / Cerebras / Gemini Flash) changes which provider serves requests with no code change.
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 
 **Wave 1**
 
@@ -71,7 +71,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on 02-02 + 02-03)*
 
-- [ ] 02-04-PLAN.md — POST /ask endpoint (retrieval + grounded prompt + generation, three GenAI spans, {answer, sources}) [RAG-01/03]
+- [x] 02-04-PLAN.md — POST /ask endpoint (retrieval + grounded prompt + generation, three GenAI spans, {answer, sources}) [RAG-01/03]
 
 ### Phase 3: Failure Injection + Dashboard + Alerting
 
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
-| 2. RAG Service Core | 3/4 | In Progress|  |
+| 2. RAG Service Core | 4/4 | Complete   | 2026-07-23 |
 | 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |
