@@ -13,3 +13,4 @@ duration - this is a real, measured number, not an assumed one.
 
 | Timestamp (UTC) | Duration |
 |---|---|
+| 2026-07-23T11:58:56Z | 7s |
