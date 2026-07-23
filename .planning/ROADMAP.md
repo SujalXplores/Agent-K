@@ -16,7 +16,7 @@ Agent K ships as a small set of coupled processes — the monitored RAG app, Age
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Telemetry Foundation** - Stand up self-hosted SigNoz via Foundry and confirm a minimal service's traces/metrics/logs actually arrive in the UI (completed 2026-07-23)
-- [x] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces (completed 2026-07-23)
+- [ ] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces (4/4 plans executed; verification found gaps 2026-07-24 — see 02-VERIFICATION.md)
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
 - [ ] **Phase 5: Agent K Core Loop** - Build the investigation state machine with Law 1 (evidence-backed claims) and Law 3 (self-telemetry, loop breaker, cost watchdog) instrumented inline
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
-| 2. RAG Service Core | 4/4 | Complete   | 2026-07-23 |
+| 2. RAG Service Core | 4/4 | Verification gaps | - |
 | 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |

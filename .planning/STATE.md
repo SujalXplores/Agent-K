@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: rag-service-core
 status: verifying
-stopped_at: Completed 02-04-PLAN.md (Phase 2 code-complete, pending end-of-phase human verification)
-last_updated: "2026-07-23T20:29:05.867Z"
-last_activity: 2026-07-23
-last_activity_desc: Phase 02 execution resumed (wave continue)
+stopped_at: Phase 02 verification found 3 gaps (pgvector codec/type conflict breaks /ask; DB instrumentation never enabled) — see 02-VERIFICATION.md
+last_updated: "2026-07-24T00:00:00.000Z"
+last_activity: 2026-07-24
+last_activity_desc: Phase 02 executed 4/4 plans; verification returned gaps_found
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 7
   completed_plans: 7
-  percent: 29
+  percent: 14
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 02 (rag-service-core) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-07-23 — Phase 02 execution resumed (wave continue)
+Phase: 02 (rag-service-core) — GAPS FOUND
+Plan: 4 of 4 executed
+Status: Verification failed 3 of 15 must-haves — phase NOT complete. Next: /gsd-plan-phase 2 --gaps
+Last activity: 2026-07-24 — Phase 02 executed 4/4 plans; verification returned gaps_found
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -102,5 +102,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-23T20:29:05.863Z
-Stopped at: Completed 02-04-PLAN.md (Phase 2 code-complete, pending end-of-phase human verification)
+Stopped at: Phase 02 verification found 3 gaps — see .planning/phases/02-rag-service-core/02-VERIFICATION.md
 Resume file: 
