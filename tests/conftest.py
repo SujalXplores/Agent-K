@@ -15,6 +15,16 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 
+def pytest_configure(config):
+    """Register the `integration` marker for tests that require the live
+    rag-postgres container seeded by scripts/seed_corpus.py."""
+    config.addinivalue_line(
+        "markers",
+        "integration: requires the live rag-postgres container seeded by "
+        "scripts/seed_corpus.py (see tests/test_integration_rag.py)",
+    )
+
+
 @pytest.fixture
 def in_memory_exporter(monkeypatch):
     """Wire an InMemorySpanExporter as the active global tracer provider.

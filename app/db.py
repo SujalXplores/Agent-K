@@ -2,12 +2,23 @@
 
 Mirrors app/telemetry.py's provider-setup module shape: a DEFAULT_*
 module constant + a lazily-built module-singleton engine, configured via
-load_dotenv() + os.getenv(). Registers the pgvector adapter type on
-every new connection (asyncpg needs this explicitly, unlike psycopg2's
-auto-adapter - CLAUDE.md Version Compatibility) and instruments the
-sync engine underneath the async engine with
-opentelemetry-instrumentation-sqlalchemy so every retrieval query gets
-a free DB span (D-07) underneath the hand-written rag.retrieval span.
+load_dotenv() + os.getenv().
+
+Vector serialization for bound query parameters is owned entirely by the
+pgvector.sqlalchemy Vector column type declared on app/models.py's
+Document.embedding - that type's bind processor already converts a Python
+list into the Postgres text form. This module must NOT install a second,
+connection-level pgvector codec (e.g. pgvector.asyncpg.register_vector):
+the two serialization paths are mutually exclusive, and combining them
+makes asyncpg reject the already-serialized parameter with
+asyncpg.exceptions.DataError on every vector-bound query
+(02-VERIFICATION.md gap 1).
+
+setup_db_instrumentation() instruments the sync core beneath the async
+engine with opentelemetry-instrumentation-sqlalchemy so every retrieval
+query emits a free DB span (D-07) underneath the hand-written
+rag.retrieval span. It must be called once at application startup (wired
+in app/main.py).
 """
 
 import os
@@ -15,8 +26,6 @@ from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from pgvector.asyncpg import register_vector
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,17 +39,6 @@ load_dotenv()
 _database_url = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 _engine: AsyncEngine = create_async_engine(_database_url)
-
-
-@event.listens_for(_engine.sync_engine, "connect")
-def _register_vector_type(dbapi_connection, connection_record):
-    """Register the pgvector adapter type on every new connection.
-
-    asyncpg (unlike psycopg2) has no automatic adapter for the vector
-    type and requires this explicit registration - CLAUDE.md Version
-    Compatibility.
-    """
-    dbapi_connection.run_async(register_vector)
 
 
 AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
