@@ -16,7 +16,7 @@ Agent K ships as a small set of coupled processes — the monitored RAG app, Age
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Telemetry Foundation** - Stand up self-hosted SigNoz via Foundry and confirm a minimal service's traces/metrics/logs actually arrive in the UI (completed 2026-07-23)
-- [ ] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces (4/4 plans executed; verification found gaps 2026-07-24 — see 02-VERIFICATION.md)
+- [ ] **Phase 2: RAG Service Core** - Build the monitored `/ask` endpoint (pgvector retrieval + LLM generation) with full GenAI-instrumented OTel traces (4/4 plans executed; verification found gaps 2026-07-24 — see 02-VERIFICATION.md; gap-closure plans 02-05..02-07 added)
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
 - [ ] **Phase 5: Agent K Core Loop** - Build the investigation state machine with Law 1 (evidence-backed claims) and Law 3 (self-telemetry, loop breaker, cost watchdog) instrumented inline
@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every `/ask` call produces distinct retrieval, prompt-construction, and generation spans in SigNoz carrying GenAI semantic-convention attributes.
   4. Switching the LLM provider env var (Groq / Cerebras / Gemini Flash) changes which provider serves requests with no code change.
 
-**Plans**: 4/4 plans complete
+**Plans**: 7 plans (4 executed, 3 gap-closure pending)
 
 **Wave 1**
 
@@ -72,6 +72,18 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Wave 3** *(blocked on 02-02 + 02-03)*
 
 - [x] 02-04-PLAN.md — POST /ask endpoint (retrieval + grounded prompt + generation, three GenAI spans, {answer, sources}) [RAG-01/03]
+
+**Wave 4** *(gap closure — blocked on 02-04; see 02-VERIFICATION.md)*
+
+- [ ] 02-05-PLAN.md — remove the conflicting pgvector codec registration that makes every vector query raise DataError, and add the phase's first live-database integration tests [RAG-01/02]
+
+**Wave 5** *(gap closure — blocked on 02-05)*
+
+- [ ] 02-06-PLAN.md — wire the orphaned setup_db_instrumentation() into startup and re-derive the span assertions against a measured production span set [RAG-01/03]
+
+**Wave 6** *(gap closure — blocked on 02-05 + 02-06)*
+
+- [ ] 02-07-PLAN.md — fail fast on a missing provider key (CR-04), guard the empty-choices completion accessor (CR-03), reopen RAG-01/RAG-03 in the ledger, and collect the two human-verification items [RAG-03/04]
 
 ### Phase 3: Failure Injection + Dashboard + Alerting
 
