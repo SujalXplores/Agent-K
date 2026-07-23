@@ -62,6 +62,58 @@ ClickHouse and the UI can take a little while to become healthy on first run (im
 pulls + ClickHouse startup) — retry the `curl` with a short backoff before concluding
 something is broken.
 
+## 1.5. REQUIRED first-run setup (do this immediately after `cast`, before anything else)
+
+**Discovered during 01-03 (TELE-03 verification):** a freshly-cast SigNoz stack looks
+healthy (`docker ps` shows all containers healthy, `curl localhost:8080` returns HTTP
+200) but **the OTel collector's OTLP receivers (4317/4318) do not actually bind** until
+SigNoz's own first-run admin/org setup is completed. Confirm this with:
+
+```bash
+curl -s http://localhost:8080/api/v1/version   # look for "setupCompleted":false
+```
+
+**Why this happens:** SigNoz's collector is managed dynamically via OpAMP — the static
+`ingester.yaml` receivers section is only a bootstrap config. The collector registers
+itself as an OpAMP-managed agent against `signoz-signoz-0`, which requires an
+organization to exist. Before the first admin account is created, the backend logs
+`"cannot create agent without orgId"` on a loop, the collector never receives its real
+runtime pipeline config, and the OTLP HTTP/gRPC receivers never bind inside the
+container — so `curl localhost:4318/v1/traces` gets **connection reset by peer** (not a
+clean HTTP error), which looks exactly like a broken OTLP exporter from the app side
+even though nothing in `app/telemetry.py` is wrong.
+
+**Fix — complete first-run setup via the register API (no manual browser step needed):**
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "<your-admin-email>",
+    "name": "<your-name>",
+    "orgName": "<your-org-name>",
+    "password": "<a-password-meeting-SigNoz-policy>",
+    "orgId": "",
+    "isAnonymous": false
+  }'
+```
+
+Password policy (enforced server-side): at least 12 characters, one uppercase, one
+lowercase, one number, one symbol.
+
+Confirm setup completed and the OTLP receivers are now live:
+
+```bash
+curl -s http://localhost:8080/api/v1/version   # now shows "setupCompleted":true
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:4318/v1/traces \
+  -H "Content-Type: application/x-protobuf" --data-binary ""   # now 200, was connection-reset
+```
+
+**Do this once per fresh stack** (fresh `foundryctl cast`/`docker compose up` against a
+volume that has never had an org registered) — including at the Day 5-6 clean-machine
+rebuild gate. If the Postgres metastore volume persists across a `down`/`cast` cycle on
+the same machine, the org survives and this step is a no-op on subsequent runs.
+
 ## 2. CORRECTED D-02 fallback (only if `cast` blocks past a short troubleshooting window)
 
 **Important — do NOT follow older guidance that references pulling SigNoz's plain
