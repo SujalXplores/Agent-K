@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: "Phase 4 executed directly (no gsd): app/signoz_mcp.py query_signoz() wrapper complete, 7 tests, 58/59 offline passing. MCP-02 fully done; MCP-01 live-server proof pending (no SigNoz MCP binary/stack in this env)."
-last_updated: "2026-07-24T13:57:30.637Z"
+stopped_at: "Phase 5 executed directly (no gsd): investigation state machine, Law 1 evidence schema, Law 3 self-telemetry/loop-breaker/cost-watchdog all built and offline-tested (39 new tests, 97/98 total offline passing). All 14 Phase-5 requirements code-complete; INV-03/LAW1-04/LAW1-05 live-verification halves pending (no SigNoz stack/MCP server/LLM key in this env)."
+last_updated: "2026-07-24T16:17:17.718Z"
 last_activity: 2026-07-24 — Phase 02 gap-closure plans 02-05..02-07 executed directly; see 02-05/06/07-SUMMARY.md
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 15
-  completed_plans: 15
+  completed_plans: 16
   percent: 29
 ---
 
@@ -109,7 +109,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T13:57:30.610Z
-Stopped at: Phase 4 executed directly (no gsd): app/signoz_mcp.py query_signoz() wrapper complete, 7 tests, 58/59 offline passing. MCP-02 fully done; MCP-01 live-server proof pending (no SigNoz MCP binary/stack in this env).
+Last session: 2026-07-24T16:17:17.688Z
+Stopped at: Phase 5 executed directly (no gsd): investigation state machine, Law 1 evidence schema, Law 3 self-telemetry/loop-breaker/cost-watchdog all built and offline-tested (39 new tests, 97/98 total offline passing). All 14 Phase-5 requirements code-complete; INV-03/LAW1-04/LAW1-05 live-verification halves pending (no SigNoz stack/MCP server/LLM key in this env).
 Resume file: 
-scripts/probe_signoz_mcp.py
+.planning/phases/05-agent-k-core-loop/05-01-SUMMARY.md

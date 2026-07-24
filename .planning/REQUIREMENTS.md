@@ -141,14 +141,14 @@ Populated during roadmap creation.
 | DASH-05 | Phase 3 | Code half done (POST /alerts/webhook, offline-tested); SigNoz alert rule + channel = Plan 03-05 (HV-2) |
 | MCP-01 | Phase 4 | Code complete (offline-tested); live-server proof pending (no SigNoz MCP binary/stack in this env) |
 | MCP-02 | Phase 4 | Complete (offline-tested: single call-site, span + query hash on every call) |
-| INV-01 | Phase 5 | Pending |
-| INV-02 | Phase 5 | Pending |
-| INV-03 | Phase 5 | Pending |
-| LAW1-01 | Phase 5 | Pending |
-| LAW1-02 | Phase 5 | Pending |
-| LAW1-03 | Phase 5 | Pending |
-| LAW1-04 | Phase 5 | Pending |
-| LAW1-05 | Phase 5 | Pending |
+| INV-01 | Phase 5 | Complete (offline-tested: webhook schedules background investigation) |
+| INV-02 | Phase 5 | Complete (offline-tested: state machine reaches REPORTED/ESCALATED) |
+| INV-03 | Phase 5 | Code complete (offline-tested for all 4 incident types w/ mocked evidence/LLM); real diagnosis quality is Phase 7 EVAL-01 |
+| LAW1-01 | Phase 5 | Complete (offline-tested: Claim/Evidence schema) |
+| LAW1-02 | Phase 5 | Complete (offline-tested: strip_unevidenced_claims) |
+| LAW1-03 | Phase 5 | Complete (offline-tested: recalibrate_confidence) |
+| LAW1-04 | Phase 5 | Code complete (offline-tested span links); real alert trace_id/span_id field convention needs live confirmation |
+| LAW1-05 | Phase 5 | Code complete (check_evidence_links.py, offline-tested via MockTransport); live 100%-resolve run pending (no SigNoz stack in this env) |
 | LAW2-01 | Phase 6 | Pending |
 | LAW2-02 | Phase 6 | Pending |
 | LAW2-03 | Phase 6 | Pending |
@@ -156,12 +156,12 @@ Populated during roadmap creation.
 | LAW2-05 | Phase 6 | Pending |
 | LAW2-06 | Phase 6 | Pending |
 | LAW2-07 | Phase 6 | Pending |
-| LAW3-01 | Phase 5 | Pending |
-| LAW3-02 | Phase 5 | Pending |
-| LAW3-03 | Phase 5 | Pending |
-| LAW3-04 | Phase 5 | Pending |
-| LAW3-05 | Phase 5 | Pending |
-| LAW3-06 | Phase 5 | Pending |
+| LAW3-01 | Phase 5 | Complete (pre-existing from Phase 2's record_llm_call_attributes, reused) |
+| LAW3-02 | Phase 5 | Complete (offline-tested: agentk.investigation span attributes) |
+| LAW3-03 | Phase 5 | Complete (offline-tested: agentk.hypothesis span attributes) |
+| LAW3-04 | Phase 5 | Complete (offline-tested: loop breaker fires, recorded, escalates w/ partial evidence) |
+| LAW3-05 | Phase 5 | Complete (offline-tested: cost watchdog fires on forced token-budget overrun) |
+| LAW3-06 | Phase 5 | Complete (adversarial repeated-query test proves loop breaker actually fires) |
 | REPT-01 | Phase 7 | Pending |
 | REPT-02 | Phase 7 | Pending |
 | REPT-03 | Phase 7 | Pending |

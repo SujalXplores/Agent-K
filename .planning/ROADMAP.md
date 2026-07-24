@@ -118,13 +118,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: INV-01, INV-02, INV-03, LAW1-01, LAW1-02, LAW1-03, LAW1-04, LAW1-05, LAW3-01, LAW3-02, LAW3-03, LAW3-04, LAW3-05, LAW3-06
 **Success Criteria** (what must be TRUE):
 
-  1. Posting a SigNoz alert webhook to Agent K's endpoint starts an investigation that runs the state machine to a terminal reported/escalated state, for each of the four seeded incidents, producing at least one root-cause hypothesis per incident.
-  2. Every claim Agent K would publish carries claim text, a hybrid LLM-proposed/code-recalibrated confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link — and any claim with an empty evidence list is stripped before it would be shown.
-  3. A human can navigate from an incident trace to Agent K's investigation spans via a span link in one click, and an automated link checker confirms 100% of rendered evidence links resolve against the live SigNoz instance.
-  4. Every investigation's LLM token counts/estimated cost, duration, MCP query count/failures/repeats, and hypothesis count/confidence are recorded as telemetry.
-  5. An adversarial repeated-query test actually triggers the loop breaker (stops the investigation, fires a watchdog alert, marks it incomplete, escalates with partial evidence), and a separate forced-budget-overrun test actually triggers the cost watchdog — both observed firing, not just present in code.
+  1. Posting a SigNoz alert webhook to Agent K's endpoint starts an investigation that runs the state machine to a terminal reported/escalated state, for each of the four seeded incidents, producing at least one root-cause hypothesis per incident. **(Done — offline-tested with mocked evidence/LLM for all 4 incidents; real diagnosis quality against a live LLM is Phase 7 EVAL-01.)**
+  2. Every claim Agent K would publish carries claim text, a hybrid LLM-proposed/code-recalibrated confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link — and any claim with an empty evidence list is stripped before it would be shown. **(Done — app/claims.py, 15 offline tests.)**
+  3. A human can navigate from an incident trace to Agent K's investigation spans via a span link in one click, and an automated link checker confirms 100% of rendered evidence links resolve against the live SigNoz instance. **(Code complete — span-link mechanism + scripts/check_evidence_links.py, offline-tested; live confirmation pending, no SigNoz stack in this environment, same HV gate as Phases 2-4.)**
+  4. Every investigation's LLM token counts/estimated cost, duration, MCP query count/failures/repeats, and hypothesis count/confidence are recorded as telemetry. **(Done — agentk.investigation/agentk.hypothesis span attributes.)**
+  5. An adversarial repeated-query test actually triggers the loop breaker (stops the investigation, fires a watchdog alert, marks it incomplete, escalates with partial evidence), and a separate forced-budget-overrun test actually triggers the cost watchdog — both observed firing, not just present in code. **(Done — both proven via real emitted spans in tests/test_investigation.py.)**
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-24, no gsd) — 05-01: app/claims.py + app/investigation.py + webhook wiring + link checker (INV-01/02/03, LAW1-01..05, LAW3-01..06)
 **Constraint**: This is the highest-requirement-count phase (14 reqs) and should be substantially complete before the team-availability gap (Jul 24-26) begins, since Phase 6's policy gate is a hard dependency on its evidence/confidence schema.
 
 ### Phase 6: Policy Gate + Rollback Executor
@@ -171,6 +171,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. RAG Service Core | 4/4 | Verification gaps | - |
 | 3. Failure Injection + Dashboard + Alerting | 4/5 | Waves 1-2 done (code+tests); 03-05 pending (SigNoz UI, HV-2) | - |
 | 4. SigNoz MCP Integration | 1/1 | Code+tests done; live-server proof pending (HV) | 2026-07-24 |
-| 5. Agent K Core Loop | 0/TBD | Not started | - |
+| 5. Agent K Core Loop | 1/1 | Code+tests done; live-stack proof pending (HV) | 2026-07-24 |
 | 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |
 | 7. Report, Dashboard Polish & Evaluation | 0/TBD | Not started | - |
