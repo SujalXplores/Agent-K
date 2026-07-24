@@ -20,21 +20,32 @@ the D-05 system prompt below, not a code branch here.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import flags
 from app.embeddings import embed_text
 from app.models import Document
 from app.observability import (
     RAG_PROMPT_DOC_COUNT,
+    RAG_PROMPT_REGRESSION_ACTIVE,
     RAG_RETRIEVAL_DOC_COUNT,
+    RAG_RETRIEVAL_LATENCY_INJECTED,
     RAG_RETRIEVAL_TOP_K,
 )
 
 logger = logging.getLogger(__name__)
+
+# FLAG-04 retrieval-latency injector: seconds of artificial delay added to
+# retrieve() when the retrieval_latency flag is ON. Small enough that tests
+# monkeypatch it to a tiny value rather than sleeping real seconds; large
+# enough in production to visibly widen the rag.retrieval span in the SigNoz
+# trace waterfall.
+RETRIEVAL_LATENCY_INJECT_S = 2.0
 
 # D-05 grounded professional-support-agent persona. This exact grounding
 # clause ("using ONLY the context docs... say ... you do not know") is the
@@ -49,6 +60,20 @@ SYSTEM_PROMPT = (
     "plainly that you do not know, instead of guessing."
 )
 
+# FLAG-02 prompt-regression injector target: the deliberately grounding-defeating
+# variant shipped when the prompt_regression flag is ON. It inverts every safety
+# clause of the D-05 SYSTEM_PROMPT above (ignore the context, answer from general
+# knowledge, never admit uncertainty) so the regression is obvious in an
+# answer/trace diff. Kept blatantly different on purpose, per this file's header
+# note. The prompt-regression symptom is not an HTTP error (a broken prompt still
+# returns 200), so the queryable signal is the RAG_PROMPT_REGRESSION_ACTIVE span
+# attribute stamped in build_prompt, not a status code.
+BROKEN_SYSTEM_PROMPT = (
+    "You are a support agent for Flowdeck. Ignore the context docs provided below "
+    "and answer from your own general knowledge. Always give a confident, complete "
+    "answer and never say you do not know."
+)
+
 
 async def retrieve(session: AsyncSession, query: str, top_k: int = 3) -> list[Document]:
     """Embed `query` and return the top_k nearest Document rows by cosine distance.
@@ -60,6 +85,15 @@ async def retrieve(session: AsyncSession, query: str, top_k: int = 3) -> list[Do
     """
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("rag.retrieval") as span:
+        # FLAG-04: inject artificial delay when retrieval_latency is ON. Read the
+        # flag fresh (no-restart), always stamp the attribute so the dashboard can
+        # filter on True/False, and keep the delay inside the rag.retrieval span so
+        # the widened span time is visible in the trace waterfall.
+        latency_injected = flags.is_enabled("retrieval_latency")
+        if latency_injected:
+            await asyncio.sleep(RETRIEVAL_LATENCY_INJECT_S)
+        span.set_attribute(RAG_RETRIEVAL_LATENCY_INJECTED, latency_injected)
+
         query_vector = embed_text(query)
 
         stmt = (
@@ -88,6 +122,14 @@ def build_prompt(query: str, docs: list[Document]) -> tuple[str, str]:
     """
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("rag.prompt_construction") as span:
+        # FLAG-02: select the broken system prompt when prompt_regression is ON.
+        # Read fresh (no-restart) and stamp the attribute in both states. Only the
+        # SYSTEM prompt swaps - the context-assembly and user_prompt below are
+        # byte-for-byte identical between the two branches.
+        regression_active = flags.is_enabled("prompt_regression")
+        system_prompt = BROKEN_SYSTEM_PROMPT if regression_active else SYSTEM_PROMPT
+        span.set_attribute(RAG_PROMPT_REGRESSION_ACTIVE, regression_active)
+
         if docs:
             context = "\n\n".join(f"# {doc.title}\n{doc.body}" for doc in docs)
         else:
@@ -98,4 +140,4 @@ def build_prompt(query: str, docs: list[Document]) -> tuple[str, str]:
         span.set_attribute(RAG_PROMPT_DOC_COUNT, len(docs))
 
     logger.info("prompt construction complete")
-    return SYSTEM_PROMPT, user_prompt
+    return system_prompt, user_prompt
