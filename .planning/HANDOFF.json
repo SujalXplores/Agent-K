@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-23T17:56:19.350Z",
+  "phase": "02",
+  "phase_name": "rag-service-core",
+  "phase_dir": ".planning/phases/02-rag-service-core",
+  "plan": 1,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Add pinned deps, pgvector Postgres container, env config, local embedding module", "status": "done", "commit": "0aa1c8c"},
+    {"id": 2, "name": "Create async SQLAlchemy engine, Document model, Alembic migration file", "status": "done", "commit": "20ddb46"}
+  ],
+  "remaining_tasks": [
+    {"id": 3, "name": "Apply the migration to the live database and verify the schema exists [BLOCKING]", "status": "not_started", "blocker": "docker pull pgvector/pgvector:pg16 fails with unexpected EOF — see blockers"}
+  ],
+  "blockers": [
+    {"description": "docker pull pgvector/pgvector:pg16 fails 4/4 attempts with 'unexpected EOF' mid-layer (different layer each time, none ever completes/caches). Raw curl test to an unrelated large-file host (ash-speed.hetzner.com/100MB.bin) also got 0 bytes in 30s timeout. Small requests (registry auth ping, PyPI JSON API) succeed fast. Conclusion: this machine's network cannot currently sustain a large download — external network condition, not a code/config/Docker issue.", "type": "external", "workaround": "Retry docker pull once network/connection is stable (e.g. different WiFi, wired connection, or just later). No project-side fix exists."}
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {"action": "Ensure network can sustain a ~300MB Docker image pull, then run: docker compose up -d rag-postgres", "context": "Task 3 of plan 02-01 is blocked on this — everything downstream (02-02 corpus seeding, 02-04 retrieval) depends on a live pgvector schema", "blocking": true}
+  ],
+  "decisions": [
+    {"decision": "Rebuilt the plan's scratch verify-venv (/tmp/agentk-p2) on /opt/homebrew/bin/python3.12 instead of system python3 (3.9.6)", "rationale": "fastapi==0.139.2 requires Python >=3.10; pip silently excludes incompatible versions from its candidate list, which looked like 'the pin doesn't exist' but was actually a Python version mismatch in the throwaway venv, not a bad pin. All of CLAUDE.md's pinned versions were confirmed to exist on real PyPI.", "phase": "02"},
+    {"decision": "Fixed app/db.py's pgvector async registration to import from pgvector.asyncpg (register_vector) instead of pgvector.psycopg (register_vector_async)", "rationale": "Project uses the asyncpg driver (postgresql+asyncpg:// URL), not psycopg. pgvector.psycopg requires the unused psycopg package to even import, and doesn't export register_vector_async regardless. pgvector.asyncpg.register_vector is the correct API for this stack, confirmed by inspecting the installed package's real exports.", "phase": "02"},
+    {"decision": "Worktree isolation degraded to sequential (USE_WORKTREES=false) for this execute-phase run", "rationale": "worktree.base-check reported HEAD (1290d27) diverged from origin/HEAD (d6153eb8) — known repo issue (see project memory 'GSD worktree baseRef stale on this repo'). Executed plan 02-01's remaining work inline in the main working tree rather than via a subagent, after an earlier subagent dispatch attempt hit repeated tool-permission friction.", "phase": "02"}
+  ],
+  "uncommitted_files": [".planning/STATE.md"],
+  "next_action": "Once network is reliable: `docker compose up -d rag-postgres && sleep 5 && docker compose exec -T rag-postgres pg_isready -U agentk`, then `. /tmp/agentk-p2/bin/activate && alembic upgrade head && alembic current`, then verify live schema via psql (\\dx vector, \\d documents) per 02-01-PLAN.md Task 3 acceptance criteria, then write .planning/phases/02-rag-service-core/02-01-SUMMARY.md and commit. After that: execute plan 02-03 (wave 1, independent, untouched — app/observability.py + app/llm.py + tests/), then 02-02 (wave 2), then 02-04 (wave 3).",
+  "context_notes": "Plan 02-01's Tasks 1-2 file-writing work already existed on disk (untracked/uncommitted) when this session picked the phase back up — a prior subagent dispatch had gotten further than a rejected-tool-call message implied before something inside it got denied. Verified every file against the plan's acceptance criteria rather than trusting or discarding it blindly; found and fixed the one real bug (db.py import) before committing. Task 3 is a genuine external blocker (network), not something more code can fix. User chose to pause here rather than keep retrying or hand-fix networking themselves."
+}

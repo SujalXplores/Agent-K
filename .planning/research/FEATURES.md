@@ -1,293 +1,203 @@
 # Feature Research
 
-**Domain:** AI-powered incident-response / root-cause-analysis (RCA) agent — evidence-gated, safety-gated, self-observed. Built on SigNoz for the Agents of SigNoz hackathon, Track 01 (AI & Agent Observability).
+**Domain:** AI incident-response agent / AIOps / agent-observability (code-enforced safety, evidence-backed RCA)
 **Researched:** 2026-07-20
-**Confidence:** MEDIUM-HIGH — SigNoz-specific claims are HIGH confidence (official docs/blogs, cross-checked). Commercial AI-SRE competitor claims are MEDIUM confidence (vendor marketing/blog sources, cross-checked across 2-3 independent write-ups each, not independently benchmarked).
+**Confidence:** MEDIUM (vendor blogs/docs cross-checked across 2+ independent sources per claim; some 2026 "trend roundup" aggregator sites downgraded to LOW and flagged inline)
 
-**Scope note:** Agent K's feature set is locked in `.planning/PROJECT.md`. This document does not propose additions. It classifies the locked feature set against what the AI-incident-response product class normally does, so the roadmap can tell which locked items are baseline expectations versus genuine points of differentiation, and which SigNoz capabilities are exercised, ambiguous, or left untouched.
-
----
+**Scope note:** Agent K's feature set is already locked in `.planning/PROJECT.md`. This document does not propose new features — it validates the locked set against what real AI-incident-response products ship, sorts the locked set into table-stakes / differentiator / anti-feature, and flags coherence gaps that stay *inside* the existing lock.
 
 ## Feature Landscape
 
-### Table Stakes (Expected of This Product Class)
+### Table Stakes (Users Expect These)
 
-Every credible AI-SRE / incident-copilot product surveyed (Cleric, Traversal, Resolve.ai, Rootly AI SRE, incident.io AI SRE / Investigations, Datadog Bits AI, PagerDuty SRE Agent, k8sgpt) does these things. Missing any of them would make Agent K look like a toy relative to the category it's entering.
+These are non-negotiable for the "incident-response agent" framing to hold up — all already present in Agent K's locked scope. Confirmed present in Datadog Bits AI SRE, Honeycomb AI-assisted investigations, PagerDuty AIOps, and incident.io AI SRE.
 
-| Feature | Why Expected | Complexity | Locked-scope status |
-|---------|--------------|------------|----------|
-| Multi-signal telemetry ingestion (traces + metrics + logs) | Universal baseline for any RCA tool; without all three signal types the tool can only see part of the failure | LOW (OTel SDK auto/manual instrumentation) | Covered — "OpenTelemetry traces, metrics, and structured logs shipped to SigNoz" |
-| Automatic cross-signal correlation during investigation (trace↔log↔metric) | SigNoz's own MCP investigation post treats this as the core value prop of the MCP server; every competitor markets "one thread, one root cause" as the alternative to manual dashboard-hopping | MEDIUM (requires trace_id/span_id propagation into logs, consistent service/resource attributes) | Covered — trace-to-log correlation implied by "collect" stage of the pipeline and SigNoz's native OTel correlation |
-| Change/deployment awareness as an RCA input | Checking "what deployed recently" is the single most common first move in both human and AI-driven RCA (Datadog Bits AI, PagerDuty SRE Agent, and generic SRE practice all treat deploys as the top hypothesis source) | LOW-MEDIUM | Covered — "deployment-related cause" is one of the six policy-gate checks; Incident 1 is a prompt regression tied to a version change |
-| Ranked hypothesis with visible reasoning, not just a verdict | Rootly AI SRE, Traversal, and Cleric all surface a reasoning chain or ranked candidate causes with confidence, explicitly because a bare verdict without visible reasoning is why engineers don't trust AI SRE output | LOW-MEDIUM (mostly a rendering/schema concern once evidence exists) | Covered — claim schema includes confidence, evidence[], and relationship fields |
-| Human-readable incident report artifact | Every surveyed tool ends an investigation with a document (postmortem draft, Slack thread summary, ticket) a human can read without touching the tool itself | LOW | Covered — Markdown report + SigNoz spans |
-| Recommendation-only fallback when confidence or preconditions aren't met | Universal industry position (found across Rootly, Cleric, incident.io, InfoWorld/CNCF commentary): "human approval is still essential for... production remediation, rollback decisions, and final root cause conclusions" | LOW-MEDIUM | Covered — "Evidence-linked human recommendation produced whenever a check fails" |
-| Cost/token instrumentation of the *monitored application's* LLM calls | Now standard practice for any GenAI app observability story since OTel's GenAI semantic conventions (`gen_ai.usage.input_tokens`, `gen_ai.request.model`, etc.) reached wide tool adoption in 2025-2026 | LOW-MEDIUM | Covered — "GenAI semantic-convention attributes on all model calls" |
-| Some form of "read-only investigation is always safe, action is not" boundary | Every credible vendor gates remediation behind approval; Cleric explicitly limits itself to observation-only | LOW (as a design stance) / MEDIUM (to enforce it structurally) | Covered — policy gate before any action, single-entry allowlist |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Alert ingestion (webhook → agent) | Every competitor triggers investigation from a fired alert, not a manual chat prompt. Datadog Bits and PagerDuty both auto-launch on alert. | LOW | Already locked: SigNoz webhook → Agent K HTTP endpoint. |
+| Iterative hypothesis-driven investigation loop | Datadog Bits explicitly runs an "observe-reason-act" loop: form hypothesis → query telemetry → validate/invalidate → refine, chaining steps until convergence. Honeycomb's AI-assisted investigations do the same via NLQ + notebook. Users expect an agent that *investigates*, not one that pattern-matches once. | MEDIUM | Matches Agent K's state-machine investigation loop exactly. |
+| Structured final artifact, not a chat transcript | 2026 AI-SRE consensus (multiple independent sources): agent must emit a final artifact — summary + evidence chain + suggested remediation — rather than a raw conversation log. incident.io enforces this via LLM JSON-mode with required Problem/Impact fields. | MEDIUM | Matches Agent K's structured claim schema + HTML report renderer. |
+| Deployment/change correlation | Datadog Bits' flagship root-cause example traces an alert back through a deployment/config change. Change-correlation is the single most common root-cause pattern across all four vendors researched. | MEDIUM | Matches Agent K's deployment markers + prompt-regression scenario. |
+| Evidence attached to claims (some form of citation) | incident.io's AI SRE differentiates itself from pure summarizers specifically by citing PRs/data sources per claim. Table-stakes floor is "cite something"; Agent K's floor is higher (see differentiators). | LOW–MEDIUM | Locked scope already exceeds table-stakes floor here — see Law 1 below. |
+| Human escalation when agent can't safely conclude/act | Cross-vendor consensus: human stays in the loop for scope/trust/postmortem decisions; agents hand off with partial findings rather than guessing. | LOW | Matches Agent K's loop-breaker → "escalates to human with partial evidence." |
+| Action audit trail | Guardrail literature (Reco, Galileo, isimplify.me sources) treats audit logs as a baseline safety requirement, not a nice-to-have, for any agent that can act. | LOW–MEDIUM | Matches Agent K's dashboard "action audit trail" section + Law 3 policy-decision logging. |
 
-**Framing for the roadmap:** the table-stakes list above is large — Agent K's locked scope already clears essentially all of it. That means judges and reviewers familiar with the category will not see the base loop (ingest → correlate → hypothesize → report) as novel. The differentiators below are where the actual pitch has to land.
+### Differentiators (Competitive Advantage)
 
-### Differentiators (What Sets Agent K Apart)
+These map to Agent K's "Three Laws" framing and are where Agent K should be *proud* to differ from Datadog/PagerDuty/incident.io, not apologetic about smaller scope.
 
-These are the things surveyed competitors and SigNoz's own published prior art do **not** demonstrate together. Value proposition is stated relative to both the commercial AI-SRE field and SigNoz's own blog posts (see Prior Art Gap Analysis below).
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Code-enforced evidence gate (Law 1: link checker + claim-stripping renderer) | Every vendor researched *cites* evidence via LLM prompting (incident.io shows PRs, Datadog shows telemetry snippets) but none was found to run a deterministic, non-LLM check that every published claim's evidence link actually resolves against the live system before it's shown. This is Agent K's sharpest wedge: "prove-it-in-telemetry" is enforced by code, not by asking the model nicely. | HIGH | Directly maps to Core Value in PROJECT.md. Requires MCP integration + span-link plumbing to exist first (dependency). |
+| Deterministic, non-LLM policy gate before any action (Law 2) | Industry pattern is "human approval button in a UI" — the *decision to ask* is still often inside the agent's own reasoning. Agent K's policy module (SLO breach, allowlist, cooldown, confidence threshold, deployment-relatedness, sandbox scope) sits in plain code, separate from the LLM, and is itself demoable/inspectable. Matches the "rule-based gate vs risk-based gate" distinction from guardrail research — Agent K commits fully to rule-based, which is more auditable than a model-scored risk gate. | MEDIUM–HIGH | Single allowlisted action keeps this tractable in 7 days; a broader action catalog (like PagerDuty's) would not be. |
+| Verified-outcome rollback (re-query SigNoz to confirm recovery, record result) | Common pattern elsewhere is "execute remediation, assume success." Agent K closes the loop: act → wait → re-query → record outcome. This is a small implementation delta with outsized credibility payoff for the "would people adopt this" judging criterion. | MEDIUM | Depends on Law 2 approving the action first. |
+| Agent self-telemetry as a first-class, demoable product surface (Law 3) | The closest industry analog (Honeycomb Agent Timeline/Canvas Skills) is brand-new (2025-2026) and is a generic dev-tool feature, not something bolted onto an incident-response agent's own operational dashboard. Cost/loop-count/hypothesis-count telemetry is usually invisible to end users of AIOps tools; Agent K makes the agent's own behavior a graded, visible dashboard section — "the investigator is investigated." | MEDIUM–HIGH | Must be instrumented *into* the state machine as it's built, not added after (see dependencies). |
+| Loop breaker + cost watchdog as visible, demoable safety features | Research confirms "token spike = first sign of a loop" is known best practice, but it's rarely productized as something a judge/user can *watch happen* live. Toggling a failure scenario and watching the watchdog fire is a strong demo beat. | MEDIUM | Depends on Law 3 telemetry (query hashing, cost tracking) being live. |
+| Hybrid confidence scoring (LLM proposes, code recalibrates) | No vendor researched was found to recalibrate a model's self-reported confidence against hard evidence signals (deployment marker present, error-rate delta magnitude, etc.). Most either trust the model's stated confidence or use a separate black-box risk score. Agent K's recalibration is itself auditable. | MEDIUM | Consumes Law 1 evidence data as recalibration input (dependency). |
 
-| Feature | Value Proposition | Complexity | Locked-scope status |
-|---------|-------------------|------------|----------|
-| Code-enforced evidence validator (deletes unsupported claims before render) | Commercial tools show confidence scores and "reasoning chains" as a UI convenience — a *display* of trustworthiness, not a structural guarantee. Research on claim-evidence grounding (citation-grounded LLM pattern: "refuses to answer when the link cannot be made") describes exactly this pattern in the literature, but none of the surveyed commercial AI-SRE products document doing it in code. This is Agent K's single sharpest claim. | MEDIUM | Covered — "Evidence validator that strips any claim with an empty evidence list before rendering" |
-| Automated link-checker verifying every rendered evidence link resolves against the *live* running SigNoz instance | Citation research distinguishes three rubrics: structural, resolvability, semantic. Most cited systems check resolvability abstractly (does a URL/ID exist in a corpus); verifying against a live, running observability backend as part of the submission's reproducibility story is unusual and directly answers "prove your links aren't decorative." | LOW-MEDIUM (once deep-link generation exists, this is a scripted HTTP check) | Covered |
-| Span links connecting investigation spans to the original incident's trace | SigNoz documents span links as a general causal-relationship primitive (its public examples are async/background-job correlation). Using them specifically for agent-investigation provenance — "this diagnosis span is causally linked to the incident span it diagnosed" — is a deliberate, less commonly demonstrated usage and is a concrete, visible SigNoz feature depth signal for judges. | MEDIUM-HIGH (requires the agent to capture and propagate the original incident trace/span ID through the whole investigation pipeline) | Covered |
-| Multi-check code-based policy gate (SLO breach, allowlist, cooldown, confidence, deployment-relatedness, sandbox) with every verdict emitted as its own telemetry span, decision inputs and all | Industry consensus is "gate remediation behind human approval" — but that's described as a *process* (a Slack approval bot, a PR review), not as a codified, inspectable set of independent checks each surfaced as its own auditable telemetry artifact. No surveyed source — commercial or SigNoz's own posts — shows this. | MEDIUM-HIGH | Covered |
-| An actual action taken (sandboxed rollback) with post-action verification query, evaluated as 2 approvals / 2 denials | Most read-only tools (Cleric, incident.io Investigations) stop at recommendation. The aggressive-automation outlier (Resolve.ai, targeting ~80% auto-resolution) does not publish a small, falsifiable approve/deny evaluation design. A single tightly-scoped action with a designed 2-and-2 test is a different, more auditable kind of claim than either extreme. | MEDIUM-HIGH | Covered |
-| Full self-observability of the investigator agent itself: computed cost, query-hash loop detection, budget watchdog halting an in-flight investigation | SigNoz's own LangChain-MCP blog *already shows partial agent self-observability* (dashboard panels for p95 latency, tool-call distribution, token usage, error rate) — see gap analysis. It does not show computed dollar cost, loop detection, or a budget-triggered halt. This is the most direct "goes beyond SigNoz's own published prior art" claim available. | MEDIUM | Covered — Law 3 |
-| Cost-only failure mode (Incident 2: flat error rate, cost SLO breach) | Nearly all public RCA demos (commercial and SigNoz's own) key off error-rate or latency spikes. A scenario where user-facing errors stay flat while an independent signal (cost) justifies a rollback is a distinct claim about *why AI-application failure modes need different instrumentation than conventional services* — not commonly staged in the surveyed material. | LOW (as a demo design choice, given the telemetry already exists) | Covered — explicitly called out in PROJECT.md as "the sharpest argument in the project" |
-| One-command reproducible deployment (Foundry `casting.yaml`/`casting.yaml.lock`) making the whole evidence trail + policy gate + self-telemetry independently re-runnable | Most AI-SRE demos are screenshots or video only; reproducibility as a submission-level differentiator is uncommon and directly serves the hackathon's own judging criteria (re-runnable via Foundry). | MEDIUM (mostly a packaging/ops concern, not a new capability) | Covered |
+### Anti-Features (Commonly Requested, Often Problematic)
 
-### Anti-Features (Deliberately Not Built)
+Cross-validated against what Datadog/PagerDuty/incident.io/Honeycomb actually build — these reinforce Agent K's existing Out of Scope list. Do not add any of these even if they look "obviously good."
 
-Cross-checked against `.planning/PROJECT.md`'s Out of Scope list. Each row also notes what the surveyed competitive field does instead, so the roadmap understands these are *informed* exclusions, not oversights.
-
-| Anti-Feature | Why It Looks Appealing | Why Agent K Excludes It | What the Field Does Instead |
-|--------------|------------------------|--------------------------|------------------------------|
-| Kubernetes / worker queues / extra microservices | Broader infra surface = looks more "production-grade"; k8sgpt and several AIOps tools specialize entirely in K8s | Breaks the 7-day, live-demo-reliable constraint; adds a whole failure-mode class unrelated to the Three Laws thesis | k8sgpt and similar tools trade generality for depth in exactly one infra layer — Agent K makes the equivalent trade toward one application and one action instead |
-| General chatbot / dashboard-with-chat-box | Chat is the default UX for "AI + observability" (Datadog Bits AI and incident.io both surface as Slack-thread conversational tools) | Conflicts with the stated thesis: Agent K is a workflow with enforced gates, not a conversational surface whose safety depends on what gets typed into it | Commercial tools use chat because it fits existing on-call workflow; Agent K trades that familiarity for a demonstrably code-enforced pipeline |
-| Unsupervised production remediation / expanding the action allowlist beyond rollback | Resolve.ai markets ~80% auto-resolution as a headline number; broader remediation breadth reads as more capable | Every additional allowlisted action multiplies the paths that must be proven safe within a week; the differentiator is depth of guarantee on one action, not breadth of actions | Aggressive-automation vendors accept this risk at enterprise scale with dedicated safety teams; not a fair comparison for a hackathon-week build |
-| Generic LLM cost tracker as the product itself | Cost/FinOps-for-LLM is a standalone product category some teams would find valuable on its own | Cost telemetry exists only to feed the policy gate (Law 2's SLO-breach check and Law 3's budget watchdog) — making it the product would dilute the Three Laws thesis | Dedicated LLM cost tools expose cost as the primary UI; Agent K treats it as an internal control signal |
-| Replacing human incident commanders | Full autonomy is the implicit "end state" narrative some AI-SRE marketing gestures toward | Directly conflicts with universal industry consensus found in research: "human approval is still essential for... rollback decisions, and final root cause conclusions" (cross-vendor). Escalation-on-failure is by design. | Every credible vendor surveyed (IBM Instana, incident.io, Rootly, Cleric) already positions itself as augmenting, not replacing, on-call humans — this exclusion is now baseline good practice industry-wide, not even a differentiator |
-| Claiming production-grade accuracy from a small sample | Competitors publish aggregate accuracy numbers (Traversal: 82% RCA accuracy across 250B log lines/day at American Express; incident.io: 90% accuracy in autonomous investigation) which creates pressure to publish a comparable-sounding number | Those percentages come from large real-world fleets over long periods; a 4-scenario, 3-run hackathon sample cannot support the same statistical claim, and asserting it would be the exact hallucination-and-overclaim failure mode this project exists to avoid | Report "4/4 on four controlled scenarios," never as a percentage implying broader generalization |
-| Extra dashboard panels/features unrelated to the Three Laws | Judging rewards SigNoz feature depth, creating temptation to add panels just to demonstrate more SigNoz surface | Explicit rule: no feature added unless an existing one is removed first; panels not wired to evidence, policy, or self-observability wouldn't demonstrate depth, just clutter | See SigNoz Feature Inventory below for feature depth that comes from the *existing* four-section dashboard requirement, not additional panels |
-
----
-
-## Prior Art Gap Analysis: SigNoz's Own Published Material
-
-This is the most important section for judging risk: a Track 01 submission that merely reproduces an existing SigNoz blog post is structurally weak. Three SigNoz posts are directly adjacent to Agent K and were read in full for this research.
-
-### 1. "Monitoring a LangChain Agent Querying the SigNoz MCP Server" (signoz.io/blog/monitoring-langchain-agent-querying-signoz-mcp-server)
-
-**What it shows:** A LangGraph agent answers natural-language operational questions ("what are all the active services in the last 5 hours," "which service has the highest error rate this week") by calling the SigNoz MCP server for logs/metrics/traces, then synthesizes a plain-language answer. The agent itself is instrumented with OpenTelemetry, and a SigNoz dashboard tracks the agent's own p95 latency, tool-call distribution, token usage, and error rate.
-
-**What it does NOT show:** RCA hypothesis generation, evidence citation with a validated schema, safety/policy gating of any kind, any action taken beyond answering a query, alerts, or the Query Builder explicitly.
-
-**Gap for Agent K:** This post is the closest published prior art and the one most likely to be cited by judges as "hasn't SigNoz already done this?" The honest answer: it demonstrates the *read path* (agent queries MCP, agent is observable) that Agent K's "collect" stage also uses, and it demonstrates partial self-observability (latency/tokens/errors on a dashboard). It demonstrates **none** of Law 1 (evidence validation, link-checking, span links), **none** of Law 2 (policy gate, action, rollback), and only a subset of Law 3 (no computed cost, no loop detection, no budget watchdog — those require deliberately induced repetition/runaway scenarios this post never stages). A submission that stopped at "agent queries MCP and answers questions" would be a near-duplicate of this post; Agent K's locked scope is already well past that line.
-
-### 2. "SigNoz MCP: Log and Trace Investigation" (signoz.io/blog/signoz-mcp-log-trace-investigation)
-
-**What it shows:** A human investigator uses the MCP server conversationally to go from a vague symptom to a specific failing span (a `PaymentService/Charge` failure affecting gold-tier users) via natural-language log queries, trace analysis, and automatic log↔trace correlation — without knowing service names or field names in advance.
-
-**What it does NOT show:** Any autonomous agent — this is human-in-the-loop investigation, not agent-driven RCA. No evidence schema, no safety gating, no action, no self-observability. Also explicitly does not cover Query Builder, dashboard creation, alert configuration, or metrics querying.
-
-**Gap for Agent K:** This post establishes that SigNoz's MCP server is capable of exactly the kind of query-by-symptom investigation Agent K's "collect" and "hypothesize" stages need — it's validation that the data path is sound, not competition for the product. Agent K's novelty relative to this post is that the investigator is an autonomous agent operating under Laws 1-3, not a human typing prompts.
-
-### 3. "Introducing Agent-Native Observability" (signoz.io/blog/introducing-agent-native-observability)
-
-**What it shows:** SigNoz's positioning/vision piece for agent-native observability. States a philosophy that maps almost exactly onto Agent K's Law 2: *"Agents should gather evidence, correlate telemetry, and propose causes. Humans should set alert policy, choose what deserves a page."* Lists a live MCP server (SigNoz Cloud + open-source self-hosted) as the current concrete feature, and a roadmap of near-term items including an in-UI AI Assistant, instrumentation "skills," schema-drift detection, and — notably — **"Investigation-to-Policy workflows"** (converting debugging sessions into automated alerts) as a *future*, not-yet-shipped item.
-
-**What it does NOT show:** Any working implementation of policy gating, evidence-linked claims, an enforced action, or agent self-observability (cost, loop detection). It is a strategy/vision post, not a demo.
-
-**Gap for Agent K:** This is the strongest validation of the project's thesis and simultaneously the strongest evidence of novelty. SigNoz has publicly stated the philosophy Agent K encodes in Law 2 ("agents propose, humans decide") but has not shipped or demonstrated a working version of it — "investigation-to-policy workflows" is explicitly named as forthcoming, not present. Agent K's policy module is a working, code-enforced, telemetry-visible instance of exactly what this post gestures at as future work. This is the single most defensible "novel, not a reproduction" claim available and should be foregrounded in the submission narrative.
-
-### Summary judgment
-
-A weak Track 01 submission in this exact niche would: connect an agent to SigNoz MCP, let it answer questions in natural language, and put a dashboard on top showing the agent's own latency/token/error stats. That submission would substantially duplicate post #1. Agent K's locked scope already requires evidence validation with a code-enforced deletion rule, a link-checker against the live instance, span links for provenance, a six-check policy gate with per-verdict telemetry, an actual gated action with an explicit approve/deny test design, and loop/cost/budget self-observability beyond what post #1's dashboard shows. None of that is additive scope creep to propose — it is already locked, and this gap analysis is the evidence that it's the right locked scope relative to what SigNoz itself has already shown.
-
----
-
-## SigNoz Feature Inventory
-
-Enumerates SigNoz-native capabilities a submission could visibly exercise, with effort to exercise *meaningfully* (not just "install it") and where the locked scope stands. Judging explicitly names MCP server, Query Builder, dashboards, and alerts as rewarded depth signals.
-
-| SigNoz Feature | What It Does | Effort to Exercise Meaningfully | Locked-Scope Status |
-|----------------|---------------|----------------------------------|----------------------|
-| OTel traces | Distributed tracing across the FastAPI app, agent, and deployer sidecar | LOW — standard OTel SDK instrumentation | Covered |
-| OTel metrics | Service health, cost, and investigation-level metrics | LOW-MEDIUM — needs custom metrics beyond auto-instrumentation (cost, MCP query counts, hypothesis confidence) | Covered |
-| Structured logs (OTel) | RAG service and agent logging, correlated to traces | LOW-MEDIUM — requires consistent trace_id/span_id propagation into log records | Covered |
-| Trace-to-log correlation | Jump from a span to the logs fired during it and back; SigNoz does this natively via trace_id/span_id fields | MEDIUM — automatic once fields are populated correctly, but requires the app not to break the propagation (e.g., across async boundaries, the deployer sidecar) | Covered implicitly — required for evidence gathering during "collect"/"validate evidence" stages |
-| Span links | Causal reference between spans not in direct parent-child relation | MEDIUM-HIGH — must be explicitly created in code linking investigation spans to the original incident trace; SigNoz's own public examples of this feature are async/background-job correlation, not agent-audit provenance, so this is a less-trodden usage | Covered — explicit locked requirement, and a differentiator (see above) |
-| Query Builder | Visual filtering/aggregation across logs, traces, metrics without raw ClickHouse/PromQL | LOW — used indirectly any time MCP or the dashboard issues a query; direct exercise (e.g., building a dashboard panel manually) is trivial once telemetry exists | Covered — underlies every dashboard panel and every evidence query |
-| Dashboards | Custom panel layouts | LOW-MEDIUM for a basic dashboard; MEDIUM for a well-organized four-section one that tells a coherent story to a judge scanning quickly | Covered — one dashboard, four sections (service health, incident context, agent health, action audit trail) is the locked requirement |
-| Alerts | Rule-based notification on metric/log/trace conditions | LOW-MEDIUM — straightforward once the underlying metrics exist; the design decision to configure them *separately* from the dashboard (rather than reusing dashboard panels) is a locked choice that visibly exercises the alerts feature as its own artifact, not folded into panels | Covered |
-| SLOs / burn-rate alerting (SigNoz-native SLO objects) | Error-budget-based alerting: alert on rate of budget consumption rather than absolute threshold | MEDIUM-HIGH if implemented as a first-class SigNoz SLO object with burn-rate math; LOW if "SLO breach" is instead a manually computed condition inside the policy module reading raw metrics | **Ambiguous in locked scope** — PROJECT.md names "SLO breach" as a Law 2 policy-gate input and frames Incident 2 around a "cost SLO breach," but does not specify whether this uses SigNoz's native SLO/burn-rate alerting feature or an internally computed check against metrics queried via MCP/Query Builder. This is a requirements-definition question, not a scope-addition — worth resolving explicitly, since a native SigNoz SLO object is a more visible feature-depth signal to judges than an equivalent internal calculation, at comparable implementation cost. |
-| MCP server | Exposes traces/metrics/logs/alerts/dashboards to LLM clients over MCP; installed by Foundry in one step | LOW to have available; MEDIUM-HIGH to exercise *meaningfully* — requires designing a specific, bounded query strategy the agent follows per incident type, not open-ended tool use | Covered — "SigNoz MCP server as the investigation data path" is the core data path for the whole project |
-| Deployment markers / before-after-deploy comparison (Query Builder time-shift) | Compare metrics before/after a deploy event; used to visually confirm a deployment-caused regression | LOW-MEDIUM once a deploy event exists to mark | **Not explicitly named in locked scope.** The "deployment-related cause" policy check and Incident 1 (prompt regression tied to a version) imply deployment awareness exists somewhere in the pipeline, but PROJECT.md doesn't name SigNoz's deployment-marker/time-shift comparison feature specifically as the mechanism. Worth flagging for requirements-definition as a feature that's implicitly relevant but not confirmed as visibly exercised. |
-| GenAI semantic-convention attributes | Standard `gen_ai.*` span/metric attributes for LLM calls (`gen_ai.request.model`, `gen_ai.usage.input_tokens`/`output_tokens`, `gen_ai.client.token.usage`, `gen_ai.client.operation.duration`) | LOW-MEDIUM — mechanical to add once the LLM call sites are centralized (which the "explicit Python state machine, not a framework" architecture decision already supports) | Covered — explicit locked requirement, and directly reused for computed cost in Law 3 |
-| Dashboards-as-code / Alerts-as-code (Terraform provider `SigNoz/signoz`) | Manage dashboards and alert rules as version-controlled Terraform resources instead of UI clicks | MEDIUM — separate tool (Terraform) and provider setup, plus state management, on top of an already tight 7-day build | **Not in locked scope.** PROJECT.md requires "one SigNoz dashboard" and "SigNoz alerts configured separately from the dashboard" but does not specify Terraform/IaC provisioning. This is a SigNoz feature judging could reward that the locked scope visibly omits — noted for the record, not proposed as an addition. |
-
-**Net assessment:** the locked scope exercises MCP server, traces, metrics, logs, trace-log correlation, span links, Query Builder (indirectly), dashboards, alerts, and GenAI semantic conventions — covering essentially every SigNoz feature judging explicitly names except dashboards/alerts-as-code, which is omitted, and native SLO/burn-rate objects, whose implementation path is ambiguous in the current spec. Both are flagged for the requirements-definition phase to resolve or consciously accept as omitted, not as scope to add.
-
----
+| Feature | Why Requested | Why Problematic (for Agent K specifically) | Alternative |
+|---------|---------------|------------------------------------------|-------------|
+| Multi-channel notification/collaboration integrations (Slack, Teams, Jira, ServiceNow paging) | Every major vendor (Datadog: 7 triage actions incl. Slack/Teams/Jira; PagerDuty: native paging; incident.io: Slack-native) ships this, so it "looks like" table stakes. | Zero-budget + 7-day constraint; adds integration surface with no judging-criteria payoff (SigNoz depth and safety-gating are what's judged, not Slack polish). Already excluded via "no general chatbot/dashboard-with-chat-box" anti-goal. | The HTML report page + SigNoz dashboard *is* the interface; human finds it there. |
+| Alert correlation/dedup/grouping across many noisy alerts | PagerDuty's core AIOps value prop is "91% alert reduction" via grouping — looks like the obvious next feature for "AIOps." | Agent K has exactly 4 seeded incident types firing one at a time in a demo; building a noise-reduction/correlation engine solves a problem Agent K doesn't have and dilutes the single-incident evidence story. | None needed — out of scope stays out of scope. |
+| Expanding the remediation action catalog / runbook library | PagerDuty Runbook Automation and Datadog's Action Catalog both push toward *more* actions over time — natural instinct is "why only one action?" | The single-allowlisted-action constraint is the entire point of Law 2's safety story; adding actions multiplies the attack surface for an ungoverned action in a system built by a team with zero prior DevOps experience, in 7 days. | Keep exactly one action (rollback); the *policy gate*, not the action catalog, is what's being showcased. |
+| Fully autonomous "no human ever needed" remediation | Industry trend language ("autonomously resolve issues," Datadog/PagerDuty marketing) makes full autonomy sound like the finish line. | Undermines the safety-first pitch and the honesty commitment ("4/4 on four controlled scenarios," no production-readiness claims). Progressive-autonomy research explicitly says trust should expand only after a failure class proves reliable — Agent K hasn't earned that yet by design. | Keep action gated behind Law 2 every single time; never bypass the policy check for "obviously safe" cases. |
+| General-purpose chat/Q&A interface over telemetry (à la Honeycomb Query Assistant/Canvas) | Natural-language querying is a flashy, demoable AI feature and genuinely useful in Honeycomb's product. | Explicit anti-goal already stated in PROJECT.md: "Agent K is an evidence-producing workflow, not a Q&A bot." Adding a chat box would blur the "workflow, not chatbot" positioning that differentiates the pitch. | Structured report + dashboard only; no freeform query surface. |
+| Cross-service/dependency-graph root-causing (Datadog's multi-hop dependency tracing) | Looks like "deeper" root-cause analysis, and dependency graphs are visually impressive. | Agent K is a single FastAPI app with one datastore — there is no dependency graph to trace. Building this would require infrastructure (K8s, service mesh) explicitly out of scope. | The four seeded scenarios are single-service by design; root-cause chains stay within the one app + its two dependencies (DB, LLM provider). |
 
 ## Feature Dependencies
 
 ```
-OTel traces/metrics/logs shipped to SigNoz
-    └──requires──> GenAI semantic-convention attributes on model calls (Law 3 cost/token base)
-    └──requires──> SigNoz deep-link generation (Law 1)
-                       └──requires──> Structured RCA claim schema
-                                          └──requires──> Evidence validator (strips unsupported claims)
-                                                             └──requires──> Automated link checker (verifies links resolve)
-    └──requires──> Span links connecting investigation spans to incident traces (Law 1)
+SigNoz MCP integration (direct SDK calls from state machine)
+    └──requires──> Investigation loop (state machine)
+                       └──requires──> Structured claim schema (Law 1)
+                                          └──requires──> Evidence link checker
+                                          └──requires──> Confidence scoring (LLM propose)
+                                                             └──requires──> Confidence recalibration (code, uses evidence strength/count)
+                                                                                └──requires──> Law 2 policy gate (confidence threshold is one check)
 
-Per-LLM-call instrumentation (tokens, cost, duration)
-    └──requires──> GenAI semantic-convention attributes
-    └──enables──>  Investigation-level metrics (duration, MCP query count, failures, repeats, confidence)
-                       └──enables──> Loop breaker (hashes MCP queries, halts on repetition)
-                       └──enables──> Cost watchdog (halts on budget exceeded)
+Law 2 policy gate (SLO breach, allowlist, cooldown, confidence, deployment-relatedness, sandbox scope)
+    └──requires──> Action caller (single allowlisted action; one authenticated HTTP POST)
+                       └──requires──> Deployer sidecar (POST /rollback, sole Docker-socket holder,
+                                        privilege-isolated from Agent K)
+                       └──requires──> Verified-outcome recheck (re-query SigNoz post-action)
 
-Structured RCA claim schema + Evidence validator
-    └──enables──>  Code-based policy module (six checks: SLO breach, allowlist, cooldown,
-                    confidence, deployment-relatedness, sandbox)
-                       └──requires──> SLO-breach signal (metrics query — native SigNoz SLO or
-                                       internally computed, see ambiguity flagged above)
-                       └──requires──> Confidence field from claim schema
-                       └──requires──> Deployment-relatedness field from claim schema
-                       └──enables──>  Rollback executor (only on all-checks-pass)
-                                          └──requires──> Deployer sidecar (POST /rollback,
-                                                          process-isolated from Agent K)
-                                          └──enables──>  Post-action verification query
-                       └──enables──>  Evidence-linked human recommendation (on any check failure)
+Investigation loop
+    └──requires──> Law 3 self-telemetry instrumented inline (not bolted on after)
+                       └──enables──> Loop breaker (query hash repeats)
+                       └──enables──> Cost watchdog (token/cost budget)
+                       └──enables──> Escalation-with-partial-evidence path
 
-Policy verdicts + action audit
-    └──requires──> Every policy verdict emitted as its own telemetry span (full inputs + reason)
+All of: RAG app OTel instrumentation + Law 1 evidence spans + Law 3 self-telemetry + Law 2 action audit
+    └──feeds──> SigNoz dashboard (4 sections: service health, incident context, agent health, action audit trail)
 
-One SigNoz dashboard (four sections)
-    └──requires──> Traces + metrics + logs (service health section)
-    └──requires──> Evidence-validated claims + span links (incident context section)
-    └──requires──> Law 3 self-observability metrics (agent health section)
-    └──requires──> Policy verdict spans + rollback executor output (action audit trail section)
+Structured claim schema + evidence link checker
+    └──feeds──> HTML incident report page (report renderer strips claims with empty evidence)
 
-SigNoz alerts (configured separately from dashboard)
-    └──requires──> Metrics/SLO signals already flowing (same base as dashboard's service-health section)
+Deployment markers (every version change, incl. flag-triggered "deployments")
+    └──enables──> Deployment-related-cause check inside Law 2 policy
+    └──enables──> Datadog-style "trace alert back to deploy" root-cause pattern (Incident 1: prompt-regression)
 
-Four seeded incidents + evaluation
-    └──requires──> The entire pipeline above functioning end-to-end
-    └──requires──> Flag-controlled fault injection in the FastAPI/Postgres app
-    └──requires──> Scripted manual baseline (independent of the agent, for comparison)
-
-Foundry deployment (casting.yaml/.lock)
-    └──requires──> All SigNoz-side configuration (dashboard, alerts, MCP) expressible/reproducible
-                    within a clean-machine rebuild under 15 minutes
+Four seeded failure scenarios (feature-flag service)
+    └──requires──> Nothing upstream (independent) but is the trigger source for every downstream Law
 ```
 
 ### Dependency Notes
 
-- **Evidence validator requires the claim schema to exist first** — the schema (claim, confidence, evidence[], query, time range, link, relationship) is the contract the validator enforces; building the validator before the schema is stable would mean redoing it.
-- **Policy gate requires both Law 1 outputs (confidence, deployment-relatedness) and Law 3 outputs (cost/budget state, SLO signal)** — it is the point where investigation results and self-observability converge, so it cannot be built or meaningfully tested until both are producing real values, not stubs.
-- **Rollback executor requires the deployer sidecar to exist and be network-reachable but privilege-isolated** — this is a hard sequencing point: the sidecar (a separate process holding the Docker socket) has to be stood up before the executor can be tested end-to-end, and the isolation property (Agent K never holds the Docker socket) is precisely what makes Law 2's "inside the sandbox" check meaningful rather than cosmetic.
-- **Dashboard's four sections each pull from a different upstream feature** — this means the dashboard is necessarily one of the last things wired up correctly, even though panel *scaffolding* can start early; a dashboard built before the underlying telemetry is stable will need rework.
-- **Native SLO objects vs. internally computed SLO checks are not interchangeable for the policy gate** — if the roadmap resolves the ambiguity flagged in the SigNoz Feature Inventory toward native SigNoz SLOs, that determination should happen before the policy module's SLO-breach check is implemented, since the two approaches have different query surfaces (a SigNoz SLO API/query vs. a raw metrics Query Builder call).
-
----
+- **Law 1 requires MCP integration first:** the evidence schema is meaningless without live, individually-visible SigNoz queries to cite — this is why MCP wiring must land early in the roadmap, not alongside the report page.
+- **Confidence recalibration requires Law 1 evidence data:** the code-side recalibration inputs (deployment marker present, error-rate delta magnitude) *are* Law 1 evidence fields — these two features must be built in the same phase or recalibration has nothing to consume.
+- **Law 2 requires confidence scoring + deployment markers + Law 1 evidence:** the policy gate checks span multiple upstream features; it cannot be built before any of them exist, and is naturally a later-phase feature.
+- **Law 3 self-telemetry should be instrumented inline, not bolted on:** because the locked scope requires per-LLM-call, per-MCP-query, per-hypothesis telemetry, retrofitting this after the investigation loop is built means re-touching every code path. Roadmap should treat "instrument as you go" as a standing constraint on the investigation-loop phase, not a separate later phase.
+- **Loop breaker and cost watchdog enhance the investigation loop but depend on Law 3 telemetry being live:** query hashing and cost tracking are Law 3 outputs; the breakers just consume them.
+- **Dashboard is a terminal dependency, not a starting point:** all four dashboard sections pull from telemetry that must already exist (app OTel, Law 1 spans, Law 3 metrics, Law 2 audit events) — it should be one of the last things built, consistent with existing Key Decisions.
+- **Rollback requires Law 2 approval as a hard gate, and its own success/failure is itself Law 3 telemetry** — the action path and Law 3 are mutually reinforcing (action feeds telemetry, telemetry feeds audit trail).
+- **Rollback executes through a privilege-isolated deployer sidecar, not from Agent K itself:** the sidecar (a separate process that is the sole holder of the Docker socket, exposing one authenticated `POST /rollback`) must be stood up and network-reachable before the action path can be tested end-to-end. Agent K never holds the Docker socket — that isolation is precisely what makes Law 2's "inside the sandbox" check structural rather than cosmetic. The sidecar has no dependency on Agent K's reasoning pipeline, so it can be scaffolded and smoke-tested early to de-risk the most safety-critical component.
 
 ## MVP Definition
 
-Scope is locked; there is no "add after validation" tier within the hackathon window. This section maps the standard MVP-tiering exercise onto the locked scope so the roadmap can see what's core-path (must work for the thesis to hold) versus supporting (must exist, but a rough edge here is more survivable).
+Scope is locked; there is no "cut features" MVP tier here. Instead, this reframes the locked set by demo-criticality within the fixed 7-day window — useful for phase sequencing, not for scope negotiation.
 
-### Launch With (v1) — the entire locked Active scope
+### Demo-Critical (must work for judging — v1)
 
-Everything in PROJECT.md's Active requirements is v1; none of it is deferrable within the seven days. Within that, the following are the load-bearing items — if any one of these is missing or broken, the project's stated thesis fails, independent of polish elsewhere:
+- [ ] Alert ingestion via SigNoz webhook — without this there is no live-triggered investigation to show.
+- [ ] Investigation loop producing at least one evidence-backed claim per seeded incident — this *is* the product.
+- [ ] Law 1 link checker showing 100% evidence resolution — directly judged ("deepest SigNoz integration," evidence-integrity constraint).
+- [ ] Law 2 policy gate + single rollback action, demoed both approving and denying — the safety-first pitch has no proof without a visible deny case, not just an approve case.
+- [ ] Law 3 telemetry visible on the dashboard (cost, loop count, action audit) — the "self-observed" half of the pitch is invisible without this.
+- [ ] HTML incident report with clickable SigNoz deep links — this is the artifact judges will actually read.
+- [ ] One polished 4-section dashboard — explicitly required, judged directly.
 
-- [ ] Evidence validator that strips unsupported claims — this is Law 1's entire enforcement mechanism
-- [ ] Code-based policy module with all six checks, each emitted as a telemetry span — this is Law 2's entire enforcement mechanism
-- [ ] Loop breaker and cost watchdog actually halting an investigation, not just logging — this is Law 3's entire enforcement mechanism (self-observability that never triggers a halt is just a dashboard, not a law)
-- [ ] Two demonstrable rollback approvals and two demonstrable denials — this is the evaluation design that proves the policy gate discriminates rather than always saying yes or always saying no
-- [ ] Automated link checker against the live SigNoz instance — this is what makes "evidence-first" a checkable claim rather than an assertion
+### Depth Add-Ons (strengthens scoring, not required for the demo path to function)
 
-### Explicitly Deferred (per PROJECT.md's Out of Scope — not new proposals)
+- [ ] All four seeded incidents demoed live in sequence (vs. one or two well-polished ones) — depends on time remaining after demo-critical path is solid.
+- [ ] Evaluation harness full 3-runs-per-incident report (12 runs) with honest failure reporting — strengthens "technical excellence" and "presentation" criteria but the core demo can proceed on fewer runs if time is short.
+- [ ] Loop-breaker/cost-watchdog *live* trigger during the demo (not just present in code) — high demo value but riskier to stage live; have a recorded fallback.
 
-These are named in PROJECT.md as intentionally out of scope for this milestone; restated here only to make the MVP boundary explicit for the roadmap, not as recommendations to add later:
+### Explicitly Still Out of Scope (not a future v2 backlog — reinforces existing PROJECT.md exclusions)
 
-- Expanding the action allowlist beyond rollback
-- Unsupervised/production-scope remediation
-- Kubernetes or multi-service architecture
-- A conversational/chat interface layered on top of the workflow
-- Dashboards-as-code / alerts-as-code via Terraform (see SigNoz Feature Inventory — omitted, not deferred with intent to add)
-
----
+- [ ] Multi-channel notifications (Slack/Jira/ServiceNow) — stays excluded per anti-features table above.
+- [ ] Expanded action catalog beyond the one rollback action — stays excluded; this is a safety-story constraint, not a time constraint.
+- [ ] Alert correlation/noise reduction across many concurrent alerts — stays excluded; no scenario in the locked scope needs it.
 
 ## Feature Prioritization Matrix
 
-Because scope is locked, "priority" here reflects sequencing/risk within the seven days rather than a build/no-build decision — everything below is already committed. High-complexity, high-dependency items belong earlier in the week; low-complexity, late-dependency items belong later.
+Within the already-locked scope, prioritized by the two judging criteria named in `<research_type>`: "deepest possible SigNoz integration" and "would people actually adopt this."
 
-| Feature | Thesis Value | Implementation Complexity | Sequencing Note |
-|---------|--------------|----------------------------|------------------|
-| Structured claim schema + evidence validator | HIGH (Law 1 core) | MEDIUM | Early — everything else in Law 1 and much of Law 2 depends on it |
-| Deployer sidecar + rollback executor + verification query | HIGH (Law 2 core, and the only real "action" in the whole system) | MEDIUM-HIGH | Early-to-mid — isolation architecture needs to be right before anything depends on it |
-| Policy module (six checks) | HIGH (Law 2 core) | MEDIUM-HIGH | Mid — needs both claim-schema outputs and Law 3 telemetry to be real |
-| Per-LLM-call instrumentation (tokens/cost/duration) | HIGH (Law 3 base, and cost feeds Incident 2 directly) | LOW-MEDIUM | Early — many downstream features (cost watchdog, dashboard agent-health section, policy SLO check) read from this |
-| Loop breaker + cost watchdog | HIGH (Law 3 enforcement) | MEDIUM | Mid — needs per-call instrumentation first |
-| Four seeded incidents + fault injection | HIGH (this is what the whole system is demonstrated against) | MEDIUM | Early-to-mid, parallelizable with the agent pipeline since it lives in the monitored app |
-| Span links (investigation → incident trace) | MEDIUM-HIGH (differentiator, judging-visible) | MEDIUM-HIGH | Mid-to-late — depends on both the incident traces and the investigation spans existing |
-| SigNoz dashboard (four sections) | MEDIUM (judging-visible, but not thesis-critical if late) | MEDIUM | Late — deliberately last, since it aggregates everything else |
-| SigNoz alerts (separate from dashboard) | MEDIUM (judging-visible SigNoz depth) | LOW-MEDIUM | Late, parallelizable with dashboard work |
-| Foundry `casting.yaml`/`.lock` + clean-machine rebuild | HIGH (submission-level requirement, judging-critical) | MEDIUM | Should be validated continuously, not left to the last day, given the 15-minute rebuild constraint |
-| Scripted manual baseline for comparison | MEDIUM (supports the evaluation narrative, not the product itself) | LOW | Late — independent of the agent build, can slot in whenever |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| SigNoz MCP integration (direct SDK, every query visible) | HIGH | MEDIUM | P1 |
+| Law 1 evidence schema + link checker | HIGH | HIGH | P1 |
+| Investigation loop / hypothesis generation | HIGH | MEDIUM | P1 |
+| Law 2 policy gate + single rollback action | HIGH | MEDIUM–HIGH | P1 |
+| Law 3 self-telemetry (inline instrumentation) | HIGH | MEDIUM–HIGH | P1 |
+| 4-section SigNoz dashboard | HIGH | MEDIUM | P1 |
+| HTML incident report page | MEDIUM–HIGH | LOW–MEDIUM | P1 |
+| Confidence recalibration (hybrid) | MEDIUM | MEDIUM | P2 |
+| Loop breaker + cost watchdog | MEDIUM–HIGH | MEDIUM | P2 |
+| Verified-outcome rollback recheck | MEDIUM | LOW | P2 |
+| Evaluation harness (3 runs × 4 incidents) | MEDIUM | MEDIUM | P2 |
+| Deployment markers on every version change | MEDIUM | LOW | P2 |
+| Alerts hand-built separately from dashboard | LOW–MEDIUM | LOW | P3 |
+| Submission blog with honest results | HIGH (for judging "presentation") | LOW | P3 (do last, needs real data) |
 
----
+**Priority key:**
+- P1: Demo-critical — must work for the pitch to hold together.
+- P2: Should have — differentiates and strengthens judged criteria, build if the P1 path is on schedule.
+- P3: Necessary but low-risk/low-effort — sequence late, not blocking.
 
 ## Competitor Feature Analysis
 
-| Dimension | Cleric | Traversal | Datadog Bits AI (Investigation) | SigNoz's own LangChain-MCP post | Agent K (locked scope) |
-|-----------|--------|-----------|-----------------------------------|-----------------------------------|--------------------------|
-| Multi-signal telemetry | Yes (logs, metrics, traces, recent changes) | Yes (250B log lines/day at reference customer) | Yes (traces, metrics, logs via Datadog) | Yes (via SigNoz MCP) | Yes |
-| Ranked/confident hypotheses | Yes, delivered to Slack | Yes — returns candidate causes with confidence rather than a single answer | Yes — posts a final root-cause summary to the incident thread | No RCA hypothesis behavior shown (Q&A only) | Yes — structured claim schema with confidence field |
-| Evidence structurally enforced (code deletes unsupported claims) | Not documented | Not documented | Not documented | Not applicable (no claims generated) | **Yes — the core differentiator** |
-| Evidence links verified against a live instance | Not documented | Not documented | Not documented | Not applicable | **Yes** |
-| Action taken | No (observation/recommendation only) | Not primary focus (causal analysis, not stated as taking actions) | Not the focus of "Investigation" product (root cause, not remediation) | No | Yes — one allowlisted action (rollback), policy-gated |
-| Explicit approve/deny evaluation design | Not documented | Not documented | Not documented | Not applicable | Yes — 2 approvals / 2 denials across 4 incidents, 3 runs each |
-| Self-observability of the agent's own resource use | Not publicly documented (vendor product, not exposed to customers) | Not publicly documented | Not publicly documented | Partial — dashboard shows p95 latency, token usage, tool distribution, error rate | Full — computed cost, loop detection, budget watchdog that halts investigation |
-| Reproducible one-command deployment for third-party verification | Not applicable (SaaS product) | Not applicable (SaaS product) | Not applicable (SaaS product) | Not applicable (blog walkthrough) | Yes — Foundry `casting.yaml`/`.lock`, <15 min clean rebuild |
-| Cost-only (no-error-rate) failure scenario staged | Not documented | Not documented | Not documented | Not applicable | Yes — Incident 2 |
-
-**Reading this table:** Agent K does not out-compete the commercial field on breadth (fewer telemetry sources, one action, four scenarios by design) or on scale (four controlled scenarios vs. production fleets processing billions of log lines). Its competitive claims are all about *structural guarantee and auditability* — evidence that can't render unsupported, links that are checked not asserted, a policy gate whose reasoning is itself telemetry, and self-observability that can halt the agent rather than just report on it. That is also exactly where it goes beyond SigNoz's own most-similar published post.
-
----
+| Feature axis | Datadog Bits AI SRE | PagerDuty AIOps | incident.io | Honeycomb | Agent K's Approach |
+|---------------|---------------------|------------------|-------------|-----------|---------------------|
+| Investigation pattern | Continuous observe-reason-act loop over telemetry, converges on root cause before humans log in | Cross-stack signal gathering + diagnostics + similar-incident comparison | LLM-summarized timeline + PR/data-source citations for root cause | Natural-language question → auto query/trace/visualize, presented as an interactive notebook | Plain-Python state machine looping SigNoz MCP queries per hypothesis, no framework — same pattern, deliberately un-black-boxed |
+| Evidence for claims | Shows telemetry/runbook evidence in conclusion, not independently link-checked (per sources reviewed) | Compares to similar past incidents; evidence depth not detailed in sources reviewed | Cites specific PRs/data sources per claim (LLM-prompted, not code-verified) | Query results + visualizations shown inline in notebook | Structured claim schema with evidence[]; **code-enforced link checker strips any claim whose evidence doesn't resolve** — highest rigor of the set |
+| Remediation action scope | 7 triage actions + expanding Action Catalog (Trigger/Get/List Investigation) — broad and growing | Recommends + executes remediation "with human approval"; also full Runbook Automation library | Not primarily an actor — mostly investigate/summarize | Not a remediation product — investigation-focused | Exactly one allowlisted action (rollback), gated by deterministic code policy, not LLM judgment — narrowest and most auditable of the set |
+| Safety gate mechanism | Not fully detailed in sources reviewed; implied approval workflows via Case Management/Incident Response | Human-approval step before automated execution (approval UI, not necessarily code-external policy) | N/A (limited remediation) | N/A (no remediation) | Separate, non-LLM policy module (SLO breach, allowlist, cooldown, confidence threshold, deployment-relatedness, sandbox scope) — policy logic lives outside the model entirely |
+| Agent self-observability | Not surfaced as a user-facing feature in sources reviewed | Not surfaced as a user-facing feature in sources reviewed | Not surfaced as a user-facing feature in sources reviewed | Closest analog: Agent Timeline / Canvas Agent / Canvas Skills (2025-2026, generic dev-tool feature) | First-class dashboard section: agent's own cost/loop-count/hypothesis-count/policy-decisions, purpose-built for *this* agent, not a generic add-on tool |
+| Audit trail | Delivers conclusions to collaboration tools (Slack/Teams/Jira) — trail lives across third-party tools | Learns from every response ("smart runbooks") — audit depth not detailed | Structured JSON-mode summaries stored in-platform | Canvas retains collaborative session history | Dedicated dashboard section (action audit trail) + span links from investigation to incident traces, all inside SigNoz — single source of truth, no third-party trail fragmentation |
+| Collaboration/notification surface | Native mobile app, On-Call, Case Management synced to ServiceNow/Jira, Slack/Teams | Deep paging/on-call integration (core PagerDuty product) | Slack-native, built on top of incident channels | Multi-user Canvas sessions | Deliberately none — HTML report page + SigNoz dashboard only (anti-feature, see table above) |
 
 ## Sources
 
-**SigNoz official / prior art (read in full):**
-- [Monitoring a LangChain Agent Querying the SigNoz MCP Server](https://signoz.io/blog/monitoring-langchain-agent-querying-signoz-mcp-server/) — HIGH confidence
-- [SigNoz MCP: Log and Trace Investigation](https://signoz.io/blog/signoz-mcp-log-trace-investigation/) — HIGH confidence
-- [Introducing Agent-Native Observability](https://signoz.io/blog/introducing-agent-native-observability/) — HIGH confidence
+- [Bits Investigation | Datadog](https://www.datadoghq.com/product/ai/bits-ai-sre/)
+- [Introducing Bits Investigation, your AI on-call teammate | Datadog](https://www.datadoghq.com/blog/bits-ai-sre/)
+- [Meet the new Bits Investigation: Deeper reasoning, twice as fast | Datadog](https://www.datadoghq.com/blog/bits-ai-sre-deeper-reasoning/)
+- [Bits AI Agents | Datadog](https://www.datadoghq.com/product/ai/bits-ai-agents/)
+- [Datadog Launches Bits AI SRE Agent to Resolve Incidents Faster](https://www.datadoghq.com/about/latest-news/press-releases/datadog-launches-bits-ai-sre-agent-to-resolve-incidents-faster/)
+- [Investigate Issues | Datadog Docs](https://docs.datadoghq.com/bits_ai/bits_ai_sre/investigate_issues/)
+- [Honeycomb: AI-Ready Observability Platform](https://www.honeycomb.io/)
+- [Observability, Meet Query Assistant, NLQ in Honeycomb](https://www.honeycomb.io/blog/introducing-query-assistant)
+- [Honeycomb Intelligence | AI-Powered Observability Platform](https://www.honeycomb.io/platform/intelligence)
+- [Honeycomb Canvas | AI-guided Observability Workspace](https://www.honeycomb.io/platform/canvas)
+- [Find and Debug Issues Easily with Observability | Honeycomb](https://www.honeycomb.io/use-cases/incident-response)
+- [AIOps | PagerDuty](https://www.pagerduty.com/platform/aiops/)
+- [PagerDuty AIOps Docs](https://support.pagerduty.com/main/docs/aiops)
+- [Automation | PagerDuty](https://www.pagerduty.com/platform/automation/)
+- [AIOps Use Cases for Faster Incident Resolution | PagerDuty](https://www.pagerduty.com/resources/aiops/learn/aiops-use-cases-incident-resolution/)
+- [PagerDuty Operations Cloud Spring 25 Release](https://www.pagerduty.com/blog/product/product-launch-enhancements-to-pagerduty-operations-cloud-2025-h1/)
+- [5 best AI-powered incident management platforms 2026 | incident.io](https://incident.io/blog/5-best-ai-powered-incident-management-platforms-2026)
+- [Incident.io: Building and Deploying an AI-Powered Incident Summary Generator | ZenML LLMOps Database](https://www.zenml.io/llmops-database/building-and-deploying-an-ai-powered-incident-summary-generator)
+- [Adding Guardrails for AI Agents: Policy and Configuration Guide | Reco](https://www.reco.ai/hub/guardrails-for-ai-agents)
+- [Essential Framework for AI Agent Guardrails | Galileo](https://galileo.ai/blog/ai-agent-guardrails-framework)
+- [AI Agent Audit Trails: Proving What Agents Decided](https://isimplifyme.com/blog/agent-audit-trails)
+- [AI Agent Audit Trails Explained | miniOrange](https://www.miniorange.com/blog/ai-agent-audit-trail/)
+- [AI Agent Observability: What to Log, Monitor, and Escalate in Production | getagentid.com](https://www.getagentid.com/resources/ai-agent-observability)
+- [Token Usage: Tracking and Controlling AI Agent Cost | Prefactor](https://prefactor.tech/learn/token-usage)
+- [AI Agent Observability Guide: Telemetry, Traces, Metrics, and Evals | groundcover](https://www.groundcover.com/learn/observability/ai-agent-observability)
 
-**SigNoz feature documentation:**
-- [Alerts | SigNoz Docs](https://signoz.io/docs/alerts/) — HIGH confidence
-- [SLO Monitoring guide | SigNoz](https://signoz.io/guides/slo-monitoring/) — MEDIUM-HIGH confidence
-- [Implementing Alerts as Code | SigNoz](https://signoz.io/guides/alerts-as-code/) — MEDIUM-HIGH confidence
-- [Correlate Traces and Logs | SigNoz Docs](https://signoz.io/docs/traces-management/guides/correlate-traces-and-logs/) — HIGH confidence
-- [Trace Details / Span Details panel | SigNoz Docs](https://signoz.io/docs/userguide/span-details/) — HIGH confidence
-- [Query Builder v5 guide | SigNoz Docs](https://signoz.io/docs/userguide/query-builder-v5/) — HIGH confidence
-- [Dashboards overview | SigNoz Docs](https://signoz.io/docs/dashboards/overview/) — HIGH confidence
-- [Interactivity in dashboards | SigNoz Docs](https://signoz.io/docs/dashboards/interactivity/) — MEDIUM confidence (time-shift/deploy-comparison detail)
-- [Creating SigNoz Dashboards with Terraform | SigNoz Docs](https://signoz.io/docs/dashboards/terraform-provider-signoz/) — HIGH confidence
-- [Creating SigNoz Alerts with Terraform | SigNoz Docs](https://signoz.io/docs/alerts-management/terraform-provider-signoz/) — HIGH confidence
-- [SigNoz Terraform provider registry](https://registry.terraform.io/providers/SigNoz/signoz/latest/docs) — HIGH confidence
+*Note: sources for the "2026 AI SRE table stakes consensus" question (aggregator/roundup sites such as xdevops-ai atlas, sherlocks.ai, novaaiops.com) are marked LOW confidence individually — treated here only where their claims cross-corroborate the higher-confidence vendor-primary sources above.*
 
-**Commercial AI-SRE / incident-response competitive landscape (MEDIUM confidence, cross-checked across multiple sources per claim):**
-- [awesome-ai-sre (GitHub)](https://github.com/pavangudiwada/awesome-ai-sre) — category taxonomy of ~70+ AI SRE/incident tools
-- [Traversal — Agentic AI for Incident Response](https://www.traversal.com/blog/agentic-ai-for-incident-response) — 82% RCA accuracy, 32% MTTR reduction claims (vendor-published)
-- [Rootly — AI SRE](https://rootly.com/ai-sre) and [Rootly AI-Driven Incident Response](https://webflow.rootly.com/blog/ai-driven-incident-response-for-sres-best-practices-use-cases-risks-and-mttr-reduction) — confidence-scored parallel hypothesis testing
-- [incident.io — Investigations](https://incident.io/investigations) and [incident.io — AI SRE](https://incident.io/ai-sre) — 90% accuracy claim (vendor-published)
-- [Datadog — Bits Investigation](https://www.datadoghq.com/product/ai/bits-investigation/) — investigation/root-cause posting to incident thread
-- [Choosing an AI SRE Tool: CTO Decision Framework 2026](https://prommer.net/en/tech/guides/best-ai-sre-tools-2026/) — Cleric described as observation/recommendation-only
-- [K8sGPT overview (Medium/Squer)](https://medium.com/@yaswanth.arumulla/k8sgpt-bringing-ai-powered-troubleshooting-to-kubernetes-2b1c96e17115) — open-source RCA-adjacent comparison point
+## Gaps to Flag for Requirements (within existing lock — not scope changes)
 
-**Failure modes / hallucination / safety criticism (MEDIUM confidence):**
-- [Your AI Ops Agent Is Guessing (Causely)](https://causely-blog.ghost.io/your-ai-ops-agent-is-guessing/)
-- [How to teach SRE AI agents to fail safely (InfoWorld)](https://www.infoworld.com/article/4195114/how-to-teach-sre-ai-agents-to-fail-safely-and-earn-your-teams-trust.html)
-- [When AI SRE Fails: Production Reality, Failure Modes, and What They Cost (SoftwareSeni)](https://www.softwareseni.com/when-ai-sre-fails-production-reality-failure-modes-and-what-they-cost/)
-- [The 4-body problem of SRE (CNCF)](https://www.cncf.io/blog/2026/07/06/the-4-body-problem-of-sre-why-autonomous-operations-depend-on-context/)
-- [Inside the lethal trifecta: Blast radius reduction in AI agent deployments (Sophos)](https://www.sophos.com/en-us/blog/inside-the-lethal-trifecta-blast-radius-reduction-in-ai-agent-deployments)
+These are coherence gaps surfaced by comparing the locked spec against how real products close the same loops. None require adding a feature outside the Active list — they are clarifications the requirements/roadmap phase should resolve explicitly rather than leave implicit.
 
-**Evidence/citation schema patterns (MEDIUM confidence, academic literature):**
-- [PaperTrail: A Claim-Evidence Interface for Grounding Provenance in LLM-based Scholarly Q&A](https://arxiv.org/html/2602.21045v1)
-- [From Agent Traces to Trust: Evidence Tracing and Execution Provenance in LLM Agents](https://arxiv.org/html/2606.04990v1)
-- [Evaluating LLM Citation & Attribution (2026)](https://futureagi.com/blog/evaluating-llm-citation-attribution-2026/) — structural/resolvability/semantic rubric
-
-**Agent self-observability / loop detection / budget guardrails (MEDIUM confidence):**
-- [OpenTelemetry blog — Inside the LLM Call: GenAI Observability with OpenTelemetry](https://opentelemetry.io/blog/2026/genai-observability/) — HIGH confidence (official OTel source)
-- [Runtime Budget Guardrails for Agentic AI (Oracle)](https://blogs.oracle.com/ai-and-datascience/runtime-budget-guardrails-agentic-ai)
-- [Your Agent Is Calling That Tool Again: tool-loop-guard (DEV)](https://dev.to/mukundakatta/your-agent-is-calling-that-tool-again-tool-loop-guard-4n9c) — N=3 warning / N=5 loop threshold convention
+1. **Passive vs. active human escalation.** The locked spec has the loop-breaker "escalate to human with partial evidence," but every competitor researched pushes an active notification (Slack/page/email) the moment human judgment is needed. Agent K's model is necessarily passive (HTML report + dashboard, no notification channel — correctly out of scope for budget/time reasons). Requirements should state explicitly that "escalation" means *the report/dashboard reflects an incomplete/needs-human state*, not that a human is proactively paged — so the demo script and eval harness don't accidentally assume paging exists.
+2. **Report history vs. single latest report.** The spec describes "a small FastAPI-served HTML report page rendering the JSON RCA report" in the singular. With 4 seeded incidents × 3 eval runs = 12 investigations expected, and a dashboard "action audit trail" section that implies multiple historical actions, requirements should clarify whether the report page lists/links multiple past incident reports (by incident ID) or only ever shows the most recent — this affects both the eval harness's ability to reference specific runs and the dashboard's audit-trail credibility.
+3. **Denied-action visibility.** Law 3's locked telemetry list already includes "actions attempted/approved/denied," which covers the *data*, but requirements should confirm the dashboard's audit-trail section is designed to make a **denied** action just as visible/demoable as an approved one — a denial is actually the stronger safety-story beat (proves the gate isn't rubber-stamping) and should not be an afterthought relative to the approved-rollback path.
 
 ---
-*Feature research for: AI-powered incident-response/RCA agent (evidence-first, safety-gated), SigNoz Track 01 hackathon submission*
+*Feature research for: AI incident-response agent / AIOps (Agent K)*
 *Researched: 2026-07-20*

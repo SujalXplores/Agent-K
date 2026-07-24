@@ -1,0 +1,20 @@
+services:
+  rag-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-postgres
+    environment:
+      POSTGRES_USER: agentk
+      POSTGRES_PASSWORD: agentk
+      POSTGRES_DB: agentk
+    ports:
+      - "5432:5432"
+    volumes:
+      - rag-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rag-postgres-data:
