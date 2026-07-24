@@ -20,6 +20,7 @@ claims: nothing is trust-me, everything is prove-it-in-telemetry.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -62,10 +63,10 @@ RECOVERY_TIME_RANGE = "5m"
 # Back-compat: an "error_rate: 0.02"-style payload.
 _ERROR_RATE_PATTERN = re.compile(r"error[_\s]?rate\D{0,10}([0-9]*\.?[0-9]+)", re.IGNORECASE)
 
-# has_error-grouped span counts, e.g. `"has_error": "true" ... "count": 3`.
-_HAS_ERROR_GROUP_PATTERN = re.compile(
-    r'has_error"?\s*[:=]\s*"?(true|false)"?[^}]*?(\d+(?:\.\d+)?)', re.IGNORECASE
-)
+# Marks an error group in signoz_aggregate_traces' columnar output. Non-error spans
+# come back as JSON null (NOT "false"), which is why anything absent from this set
+# counts toward the denominator rather than being skipped.
+_ERROR_GROUP_VALUES = {"true", "1"}
 
 
 @dataclass
@@ -113,17 +114,56 @@ def _parse_error_rate(text: str) -> float | None:
         except ValueError:
             pass
 
-    counts: dict[str, float] = {}
-    for flag, value in _HAS_ERROR_GROUP_PATTERN.findall(text):
-        try:
-            counts[flag.lower()] = counts.get(flag.lower(), 0.0) + float(value)
-        except ValueError:
-            continue
+    return _parse_grouped_error_ratio(text)
 
-    total = counts.get("true", 0.0) + counts.get("false", 0.0)
+
+def _iter_result_rows(node: object):
+    """Yield every [group, count] row from signoz_aggregate_traces' response.
+
+    The payload nests results several layers deep and the exact depth is not
+    contractual, so this walks the structure looking for the row shape rather than
+    hard-coding a path that a server-side change could silently invalidate.
+    """
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from _iter_result_rows(value)
+    elif isinstance(node, list):
+        if len(node) == 2 and not isinstance(node[0], (dict, list)) and isinstance(node[1], (int, float)):
+            yield node
+        else:
+            for item in node:
+                yield from _iter_result_rows(item)
+
+
+def _parse_grouped_error_ratio(text: str) -> float | None:
+    """Error ratio from has_error-grouped span counts.
+
+    Shape confirmed against a live SigNoz on 2026-07-25:
+
+        "data": [[null, 3057], ["true", 180]]   ->  180 / 3237
+
+    The group value for NON-error spans is JSON null, not "false" - so every group
+    that is not an error group contributes to the denominator. Getting that wrong
+    yields a 100% error rate on a perfectly healthy service, which would make
+    verify_recovery reject every successful rollback.
+    """
+    try:
+        payload = json.loads(text[text.index("{") : text.rindex("}") + 1])
+    except (ValueError, json.JSONDecodeError):
+        return None
+
+    errors = 0.0
+    total = 0.0
+    for group, count in _iter_result_rows(payload):
+        if isinstance(count, bool):  # bool is an int subclass; never a count
+            continue
+        total += count
+        if str(group).strip().lower() in _ERROR_GROUP_VALUES:
+            errors += count
+
     if total <= 0:
         return None
-    return counts.get("true", 0.0) / total
+    return errors / total
 
 
 async def verify_recovery(service: str, time_range: str) -> tuple[bool, str]:

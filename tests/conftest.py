@@ -5,6 +5,7 @@ a FastAPI TestClient fixture (client) with get_session overridden, so
 tests/test_rag.py and tests/test_ask.py never touch a real database.
 """
 
+import sys
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -23,6 +24,37 @@ def pytest_configure(config):
         "integration: requires the live rag-postgres container seeded by "
         "scripts/seed_corpus.py (see tests/test_integration_rag.py)",
     )
+
+
+@pytest.fixture(autouse=True)
+def isolate_from_dotenv(monkeypatch):
+    """Make every test hermetic against the developer's real `.env`.
+
+    Two problems this solves, both of which appeared the moment a real `.env` was
+    created on 2026-07-25:
+
+    1. **Correctness.** `test_get_client_raises_when_provider_key_missing...`
+       passed only because no GROQ_API_KEY existed anywhere. With a configured
+       `.env`, app.llm's own `load_dotenv()` re-supplied the key mid-test and the
+       assertion flipped. The suite was silently depending on the machine being
+       unconfigured, so it would fail for every teammate who set up credentials.
+
+    2. **Safety.** With real keys reachable, any test that forgets to monkeypatch
+       the client could make a live, billable provider call. Tests must never be
+       able to spend money or touch a real service by omission.
+
+    Neutering `load_dotenv` at each import site (rather than deleting env vars) is
+    what actually works: `load_dotenv` repopulates anything deleted, since a
+    deleted var is no longer "already set" and stops being protected by its
+    default `override=False`.
+    """
+    for module_name in ("app.llm", "app.signoz_mcp", "app.db", "app.telemetry", "app.embeddings"):
+        module = sys.modules.get(module_name)
+        if module is not None and hasattr(module, "load_dotenv"):
+            monkeypatch.setattr(module, "load_dotenv", lambda *a, **k: False)
+
+    for var in ("GROQ_API_KEY", "CEREBRAS_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
 
 
 @pytest.fixture(autouse=True)

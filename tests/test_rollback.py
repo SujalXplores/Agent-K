@@ -281,3 +281,37 @@ async def test_action_span_records_outcome(monkeypatch, in_memory_exporter):
     assert attrs[AGENTK_ACTION_STATUS] == "executed"
     assert attrs[AGENTK_ACTION_VERIFIED] is True
     assert attrs[AGENTK_ACTION_PREVIOUS_IMAGE] == "agent-k-rag:v2-broken"
+
+
+# --- error-ratio parsing, pinned to a real SigNoz payload ---
+
+# Captured verbatim from a live signoz_aggregate_traces call on 2026-07-25.
+# Note has_error is JSON null for non-error spans, NOT "false".
+REAL_AGGREGATE_PAYLOAD = (
+    '{"status":"success","data":{"type":"scalar","meta":{"rowsScanned":3285,'
+    '"bytesScanned":444115,"durationMs":11,"stepIntervals":{"A":285}},"data":'
+    '{"results":[{"queryName":"A","columns":[{"name":"has_error","columnType":"group"},'
+    '{"name":"__result_0","columnType":"aggregation"}],'
+    '"data":[[null,3057],["true",180]]}]}}}'
+)
+
+
+def test_parses_error_ratio_from_the_real_signoz_payload():
+    ratio = rollback_module._parse_error_rate(REAL_AGGREGATE_PAYLOAD)
+    assert ratio == pytest.approx(180 / 3237, rel=1e-6)
+
+
+def test_null_group_counts_as_healthy_not_as_error():
+    """Regression: treating the null group as 'not counted' yields a 100% error
+    rate on a healthy service, which would reject every successful rollback."""
+    healthy = '{"data":{"results":[{"data":[[null,1000]]}]}}'
+    assert rollback_module._parse_error_rate(healthy) == 0.0
+
+
+def test_explicit_error_rate_still_wins():
+    assert rollback_module._parse_error_rate("error_rate: 0.02") == pytest.approx(0.02)
+
+
+def test_unparseable_payload_returns_none_never_a_guess():
+    for payload in ("", "not json", "{}", '{"data":{"results":[]}}'):
+        assert rollback_module._parse_error_rate(payload) is None
