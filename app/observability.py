@@ -83,6 +83,41 @@ AGENTK_WATCHDOG_REPEAT_COUNT = "agentk.watchdog.repeat_count"
 AGENTK_WATCHDOG_TOTAL_TOKENS = "agentk.watchdog.total_tokens"
 AGENTK_WATCHDOG_BUDGET = "agentk.watchdog.budget"
 
+# --- Law 2 policy-gate attribute-name constants (Phase 6) ---
+# Stamped by app/policy.py's evaluate_policy() on the "agentk.policy.decision"
+# span (LAW2-06). The requirement enumerates exactly what must be recorded -
+# requested action, incident ID, SLO value, threshold, confidence, allowlist
+# result, cooldown result, final verdict, reason - so every one of those has a
+# constant here and none is set inline at the call site. The per-check *_PASSED
+# attributes make each individual gate independently queryable in the Phase 7
+# Action Audit Trail dashboard, so a denied verdict shows WHICH check denied it.
+AGENTK_POLICY_ACTION = "agentk.policy.action"
+AGENTK_POLICY_INCIDENT_ID = "agentk.policy.incident_id"
+AGENTK_POLICY_SLO_VALUE = "agentk.policy.slo_value"
+AGENTK_POLICY_SLO_THRESHOLD = "agentk.policy.slo_threshold"
+AGENTK_POLICY_CONFIDENCE = "agentk.policy.confidence"
+AGENTK_POLICY_CONFIDENCE_THRESHOLD = "agentk.policy.confidence_threshold"
+AGENTK_POLICY_SLO_PASSED = "agentk.policy.slo_passed"
+AGENTK_POLICY_ALLOWLIST_PASSED = "agentk.policy.allowlist_passed"
+AGENTK_POLICY_COOLDOWN_PASSED = "agentk.policy.cooldown_passed"
+AGENTK_POLICY_CONFIDENCE_PASSED = "agentk.policy.confidence_passed"
+AGENTK_POLICY_DEPLOYMENT_RELATED_PASSED = "agentk.policy.deployment_related_passed"
+AGENTK_POLICY_SANDBOX_PASSED = "agentk.policy.sandbox_passed"
+AGENTK_POLICY_VERDICT = "agentk.policy.verdict"  # "approved" | "denied"
+AGENTK_POLICY_REASON = "agentk.policy.reason"
+AGENTK_POLICY_FAILED_CHECKS = "agentk.policy.failed_checks"  # comma-joined check names
+
+# --- Law 2 action-execution attribute-name constants (Phase 6) ---
+# Stamped by app/rollback.py on the "agentk.action.rollback" span - the record of
+# what Agent K actually DID after an approved verdict, and whether SigNoz
+# independently confirmed recovery afterwards (LAW2-04).
+AGENTK_ACTION_KIND = "agentk.action.kind"
+AGENTK_ACTION_STATUS = "agentk.action.status"  # "executed" | "failed" | "conflict"
+AGENTK_ACTION_HTTP_STATUS = "agentk.action.http_status"
+AGENTK_ACTION_PREVIOUS_IMAGE = "agentk.action.previous_image"  # sidecar-reported pre-mutation tag
+AGENTK_ACTION_VERIFIED = "agentk.action.verified"
+AGENTK_ACTION_VERIFICATION_DETAIL = "agentk.action.verification_detail"
+
 # Best-effort, zero-budget-friendly per-1K-token rate used only to produce a
 # non-zero estimated_cost_usd attribute for Law 3 reuse (Phase 5). Free-tier
 # providers (Groq/Cerebras/Gemini Flash) have effectively $0 real cost during

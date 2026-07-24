@@ -272,3 +272,145 @@ def test_list_and_clear_investigations():
     inv_module.clear_investigations()
     assert inv_module.list_investigations() == []
     assert inv_module.get_investigation("x") is None
+
+
+# --- Law 2 act stage wiring (Phase 6) ---
+#
+# These prove the gate is actually REACHED by the state machine, not merely that
+# app/policy.py works in isolation (tests/test_policy.py covers that). The
+# distinction matters: a correct policy module that nothing calls enforces nothing.
+
+
+def _actionable_alert():
+    """An alert that clears every policy check except the incident-type one, so
+    each test below turns solely on what the LLM diagnoses."""
+    return _alert(
+        labels={"service": "agent-k-rag-service"},
+        annotations={"burn_rate": "2.5"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_deployment_class_incident_reaches_an_approved_rollback(monkeypatch):
+    from app import policy as policy_module
+    from app import rollback as rollback_module
+
+    policy_module.clear_cooldowns()
+    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success("deployment marker present"))
+    monkeypatch.setattr(llm_module, "generate", _mock_generate("prompt_regression is the cause", 0.9))
+
+    executed = []
+
+    async def _fake_execute(*, decision, time_range, sleep=None):
+        executed.append(decision)
+        return rollback_module.ActionOutcome(kind="rollback", status="executed", verified=True)
+
+    monkeypatch.setattr(rollback_module, "execute_rollback", _fake_execute)
+
+    inv = await inv_module.run_investigation(_actionable_alert())
+
+    assert inv.policy_decision is not None
+    assert inv.policy_decision.approved
+    assert len(executed) == 1
+    assert inv.action_outcome is not None and inv.action_outcome.executed
+
+
+@pytest.mark.asyncio
+async def test_non_deployment_incident_is_denied_and_takes_no_action(monkeypatch):
+    from app import policy as policy_module
+    from app import rollback as rollback_module
+
+    policy_module.clear_cooldowns()
+    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
+    monkeypatch.setattr(llm_module, "generate", _mock_generate("retrieval_latency is the cause", 0.9))
+
+    async def _must_not_run(*, decision, time_range, sleep=None):
+        raise AssertionError("no action may execute on a denied verdict (LAW2-05)")
+
+    monkeypatch.setattr(rollback_module, "execute_rollback", _must_not_run)
+
+    inv = await inv_module.run_investigation(_actionable_alert())
+
+    assert inv.policy_decision is not None
+    assert not inv.policy_decision.approved
+    assert "deployment_related" in inv.policy_decision.failed_checks
+    assert inv.action_outcome is None
+    # LAW2-05: the human gets an evidence-linked recommendation instead.
+    assert inv.policy_decision.recommendation is not None
+    assert inv.policy_decision.evidence_links
+
+
+@pytest.mark.asyncio
+async def test_incomplete_investigation_never_reaches_the_act_stage(monkeypatch):
+    """A loop-broken investigation stopped early by definition, so acting on its
+    half-formed picture is exactly what Law 3's watchdogs exist to prevent."""
+    from app import rollback as rollback_module
+
+    monkeypatch.setattr(
+        inv_module, "EVIDENCE_QUERY_PLAN", [(inv_module.SIGNOZ_TRACES_TOOL, "trace")] * 10
+    )
+    monkeypatch.setattr(inv_module, "MAX_ITERATIONS", 10)
+    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
+    # Confidence must stay BELOW CONFIDENCE_STOP_THRESHOLD: a high-confidence
+    # hypothesis stops the loop on iteration 1, so the breaker would never get
+    # the repeat count it needs and this test would silently assert nothing.
+    monkeypatch.setattr(llm_module, "generate", _mock_generate("prompt_regression is the cause", 0.1))
+
+    async def _must_not_run(*, decision, time_range, sleep=None):
+        raise AssertionError("an incomplete investigation must never act")
+
+    monkeypatch.setattr(rollback_module, "execute_rollback", _must_not_run)
+
+    inv = await inv_module.run_investigation(_actionable_alert())
+
+    assert inv.loop_breaker_fired is True
+    assert inv.incomplete is True
+    # The sharp assertion: policy was never even EVALUATED. Were the incomplete
+    # guard removed, this would hold a denial rather than None - so None is what
+    # uniquely proves the guard fired, rather than some later check happening to
+    # deny the action anyway.
+    assert inv.policy_decision is None
+    assert inv.action_outcome is None
+
+
+@pytest.mark.asyncio
+async def test_policy_decision_span_is_a_child_of_the_investigation_span(
+    monkeypatch, in_memory_exporter
+):
+    """A human opening agentk.investigation should see the verdict in the same
+    trace as the reasoning that produced it."""
+    from app import policy as policy_module
+
+    policy_module.clear_cooldowns()
+    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
+    monkeypatch.setattr(llm_module, "generate", _mock_generate("retrieval_latency is the cause", 0.9))
+
+    await inv_module.run_investigation(_actionable_alert())
+
+    spans = {s.name: s for s in in_memory_exporter.get_finished_spans()}
+    assert "agentk.policy.decision" in spans
+    policy_span = spans["agentk.policy.decision"]
+    investigation_span = spans["agentk.investigation"]
+    assert policy_span.parent is not None
+    assert policy_span.parent.span_id == investigation_span.context.span_id
+
+
+@pytest.mark.asyncio
+async def test_act_stage_failure_does_not_destroy_the_investigation_record(monkeypatch):
+    """Law 1/3 telemetry must survive an act-stage crash."""
+    from app import policy as policy_module
+
+    policy_module.clear_cooldowns()
+    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
+    monkeypatch.setattr(llm_module, "generate", _mock_generate("prompt_regression is the cause", 0.9))
+
+    def _explode(**kwargs):
+        raise RuntimeError("policy blew up")
+
+    monkeypatch.setattr(policy_module, "evaluate_policy", _explode)
+
+    inv = await inv_module.run_investigation(_actionable_alert())
+
+    assert inv.state == inv_module.InvestigationState.REPORTED
+    assert inv.claims
+    assert inv_module.get_investigation(inv.id) is inv

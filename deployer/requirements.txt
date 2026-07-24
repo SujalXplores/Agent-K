@@ -1,0 +1,11 @@
+# Deployer sidecar dependencies - deliberately minimal (LAW2-03 "dependency-light").
+# This is the ONE container holding the Docker socket; every package added here
+# widens the attack surface of the most privileged process in the system.
+# It must NOT gain sqlalchemy/pgvector/sentence-transformers/openai - if you find
+# yourself needing those, the logic belongs in the RAG app, not here.
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+pydantic==2.13.4
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0

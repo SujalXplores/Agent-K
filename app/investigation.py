@@ -50,6 +50,8 @@ from opentelemetry import trace
 from opentelemetry.trace import Link, SpanContext, TraceFlags
 
 from app import llm as llm_module
+from app import policy as policy_module
+from app import rollback as rollback_module
 from app import signoz_mcp
 from app.claims import Claim, Evidence, build_evidence_link, recalibrate_confidence, strip_unevidenced_claims
 from app.observability import (
@@ -142,6 +144,10 @@ class Investigation:
     cost_watchdog_fired: bool = False
     watchdog_events: list[dict] = field(default_factory=list)
     last_evidence_text: list[str] = field(default_factory=list)
+    # Law 2 act-stage record (Phase 6). Both stay None for an incomplete
+    # investigation, which never reaches the act stage - see _run_act_stage.
+    policy_decision: policy_module.PolicyDecision | None = None
+    action_outcome: rollback_module.ActionOutcome | None = None
 
 
 # In-process investigation store (mirrors app.alerts_webhook's `_alerts` list
@@ -332,6 +338,43 @@ def _build_incident_links(alert: AlertItem) -> list[Link]:
     return [Link(span_context)]
 
 
+async def _run_act_stage(inv: Investigation, alert: AlertItem) -> None:
+    """Propose an action, run it past the Law 2 policy gate, and act only if allowed.
+
+    Deliberately skipped for an INCOMPLETE investigation (loop breaker or cost
+    watchdog fired, or an unexpected exception escalated it): an investigation
+    that stopped early by definition did not finish gathering evidence, and
+    acting on a half-formed picture is precisely the failure mode Law 3's
+    watchdogs exist to prevent. Such an investigation escalates to a human
+    instead (REPT-03 renders it as needs-human), with no policy decision recorded
+    - honest silence rather than a verdict on evidence Agent K never collected.
+
+    Every action Agent K could take passes through evaluate_policy() here, and
+    app/rollback.py independently re-checks `decision.approved` before executing,
+    so the gate cannot be bypassed by a caller that forgets to check.
+    """
+    if inv.incomplete or not inv.claims:
+        return
+
+    decision = policy_module.evaluate_policy(
+        action=policy_module.ROLLBACK_ACTION,
+        incident_id=inv.id,
+        alert=alert,
+        claims=inv.claims,
+    )
+    inv.policy_decision = decision
+
+    if not decision.approved:
+        # LAW2-05: no action; the decision already carries the evidence-linked
+        # recommendation for a human.
+        return
+
+    time_range = f"{alert.startsAt}/{alert.endsAt or 'now'}"
+    inv.action_outcome = await rollback_module.execute_rollback(
+        decision=decision, time_range=time_range
+    )
+
+
 async def run_investigation(alert: AlertItem) -> Investigation:
     """Drive one investigation from RECEIVED to a terminal REPORTED/ESCALATED
     state (INV-02), producing at least one evidence-backed hypothesis when
@@ -375,6 +418,16 @@ async def run_investigation(alert: AlertItem) -> Investigation:
             else:
                 inv.state = InvestigationState.ESCALATED
                 inv.incomplete = True
+
+        # Law 2 act stage (Phase 6). Runs inside the investigation span so the
+        # policy-decision and action spans are its children - a human opening
+        # agentk.investigation sees the reasoning AND the resulting verdict/action
+        # in one trace. Guarded: a failure in the act stage must never destroy the
+        # investigation record that Law 1/3 telemetry depends on.
+        try:
+            await _run_act_stage(inv, alert)
+        except Exception:
+            logger.exception("act stage failed unexpectedly")
 
         duration_s = time.monotonic() - inv.started_at
         span.set_attribute(AGENTK_INVESTIGATION_ID, inv.id)
