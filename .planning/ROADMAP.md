@@ -106,10 +106,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: MCP-01, MCP-02
 **Success Criteria** (what must be TRUE):
 
-  1. Agent K's process connects to the SigNoz MCP server via the official MCP Python SDK and a throwaway script retrieves a real trace, log, or metric query result end-to-end (not mocked).
-  2. Every MCP query issued goes through one wrapper function, confirmed by seeing a span recorded and a query hash computed for each call made through it.
+  1. Agent K's process connects to the SigNoz MCP server via the official MCP Python SDK and a throwaway script retrieves a real trace, log, or metric query result end-to-end (not mocked). **(Wrapper + throwaway script built 2026-07-24; running it against a real server is human-verification, no SigNoz MCP binary/live stack in this environment — same HV-2 gate carried from Phases 2/3.)**
+  2. Every MCP query issued goes through one wrapper function, confirmed by seeing a span recorded and a query hash computed for each call made through it. **(Done — app/signoz_mcp.py's query_signoz(), 7 offline tests, grep-verified single call site.)**
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-24, no gsd) — 04-01 query_signoz() wrapper + compute_query_hash + probe_signoz_mcp.py throwaway script (MCP-01/02)
 
 ### Phase 5: Agent K Core Loop
 
@@ -170,7 +170,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
 | 2. RAG Service Core | 4/4 | Verification gaps | - |
 | 3. Failure Injection + Dashboard + Alerting | 4/5 | Waves 1-2 done (code+tests); 03-05 pending (SigNoz UI, HV-2) | - |
-| 4. SigNoz MCP Integration | 0/TBD | Not started | - |
+| 4. SigNoz MCP Integration | 1/1 | Code+tests done; live-server proof pending (HV) | 2026-07-24 |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |
 | 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |
 | 7. Report, Dashboard Polish & Evaluation | 0/TBD | Not started | - |

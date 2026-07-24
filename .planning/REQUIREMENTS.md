@@ -139,8 +139,8 @@ Populated during roadmap creation.
 | DASH-03 | Phase 7 | Pending |
 | DASH-04 | Phase 7 | Pending |
 | DASH-05 | Phase 3 | Code half done (POST /alerts/webhook, offline-tested); SigNoz alert rule + channel = Plan 03-05 (HV-2) |
-| MCP-01 | Phase 4 | Pending |
-| MCP-02 | Phase 4 | Pending |
+| MCP-01 | Phase 4 | Code complete (offline-tested); live-server proof pending (no SigNoz MCP binary/stack in this env) |
+| MCP-02 | Phase 4 | Complete (offline-tested: single call-site, span + query hash on every call) |
 | INV-01 | Phase 5 | Pending |
 | INV-02 | Phase 5 | Pending |
 | INV-03 | Phase 5 | Pending |
