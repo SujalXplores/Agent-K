@@ -10,15 +10,23 @@ anti-pattern warning).
 import logging
 
 import fastapi
-from fastapi import Depends
+from fastapi import Depends, Header
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import alerts_webhook
+from app import flags
 from app import llm as llm_module
 from app import rag as rag_module
 from app.db import get_session, setup_db_instrumentation
-from app.schemas import AskRequest, AskResponse, Source
+from app.schemas import (
+    AskRequest,
+    AskResponse,
+    FlagStateResponse,
+    FlagToggleRequest,
+    Source,
+)
 from app.telemetry import setup_telemetry
 
 # 1. Create the app.
@@ -60,6 +68,42 @@ async def ask(req: AskRequest, session: AsyncSession = Depends(get_session)) -> 
         answer=result.answer,
         sources=[Source(doc_id=doc.doc_id, title=doc.title) for doc in docs],
     )
+
+
+# Admin failure-injection endpoints (FLAG-01). Registered here in step 2 -
+# BEFORE FastAPIInstrumentor.instrument_app below - so every toggle/audit call
+# is wrapped in a request span like any other route (the same route-before-
+# instrumentation rule the /ask handler depends on). POST is token-gated
+# (X-Admin-Token vs ADMIN_TOKEN env; open when the env var is unset, per D-03
+# local-demo decision); GET is an unauthenticated read-only state audit so an
+# operator can always see and reset stuck flags.
+@app.post("/admin/flags", response_model=FlagStateResponse)
+async def set_flags(
+    req: FlagToggleRequest,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> FlagStateResponse:
+    if not flags.token_matches(x_admin_token):
+        raise fastapi.HTTPException(status_code=401, detail="invalid admin token")
+    flags.set_flag(req.name, req.enabled)
+    # FLAG-06: emit a deployment.marker span only for deployment-class scenarios
+    # toggled ON; the emitter itself enforces the asymmetry.
+    flags.maybe_emit_deployment_marker(req.name, req.enabled)
+    logging.getLogger(__name__).info(
+        "flag toggled: %s -> %s", req.name, req.enabled
+    )
+    return FlagStateResponse(flags=flags.get_all())
+
+
+@app.get("/admin/flags", response_model=FlagStateResponse)
+async def get_flags() -> FlagStateResponse:
+    return FlagStateResponse(flags=flags.get_all())
+
+
+# Inbound SigNoz alert webhook (DASH-05). Included here in step 2 - BEFORE
+# FastAPIInstrumentor.instrument_app below - so POST /alerts/webhook is wrapped
+# in a request span. This is the reusable entrypoint Agent K's Phase-5 loop
+# consumes as its investigation trigger.
+app.include_router(alerts_webhook.router)
 
 
 # 3. Wire OTel providers (console + OTLP-HTTP dual exporters, D-06/D-07).
