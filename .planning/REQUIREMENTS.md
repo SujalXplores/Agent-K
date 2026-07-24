@@ -58,13 +58,13 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Law 2 — Action Policy (LAW2)
 
-- [ ] **LAW2-01**: A code-based policy module checks SLO/burn-rate breach, allowlist membership, cooldown period, confidence threshold, deployment-related cause, and sandbox scope before any action — with zero LLM involvement in the allow/deny decision
-- [ ] **LAW2-02**: The action allowlist contains exactly one action: rollback to the previous application version
+- [x] **LAW2-01**: A code-based policy module checks SLO/burn-rate breach, allowlist membership, cooldown period, confidence threshold, deployment-related cause, and sandbox scope before any action — with zero LLM involvement in the allow/deny decision
+- [x] **LAW2-02**: The action allowlist contains exactly one action: rollback to the previous application version
 - [ ] **LAW2-03**: A separate, dependency-light `deployer` sidecar is the sole holder of the Docker socket and exposes exactly one authenticated endpoint (`POST /rollback`) — Agent K never holds the Docker socket; when a rollback is approved, Agent K makes one authenticated HTTP call to that endpoint carrying no image reference (the sidecar itself determines the previous known-good tag), and the sidecar runs `docker compose up -d --force-recreate` (never `restart`) after capturing the pre-mutation image tag, guarded by a concurrency lock (returns 409 if a rollback is already in flight)
 - [ ] **LAW2-04**: On rollback the deployer sidecar creates a SigNoz deployment marker; Agent K then waits, re-queries SigNoz to verify recovery, and records the verified outcome
-- [ ] **LAW2-05**: When any safety check fails, Agent K takes no action and instead produces an evidence-linked recommendation for a human
-- [ ] **LAW2-06**: Every policy decision (requested action, incident ID, SLO value, threshold, confidence, allowlist result, cooldown result, final verdict, reason) is recorded as a telemetry span
-- [ ] **LAW2-07**: Across the four seeded incidents, exactly two produce an approved rollback (prompt-regression, retry-storm) and two produce a denied verdict (retrieval-latency, DB-pool-exhaustion)
+- [x] **LAW2-05**: When any safety check fails, Agent K takes no action and instead produces an evidence-linked recommendation for a human
+- [x] **LAW2-06**: Every policy decision (requested action, incident ID, SLO value, threshold, confidence, allowlist result, cooldown result, final verdict, reason) is recorded as a telemetry span
+- [x] **LAW2-07**: Across the four seeded incidents, exactly two produce an approved rollback (prompt-regression, retry-storm) and two produce a denied verdict (retrieval-latency, DB-pool-exhaustion)
 
 ### Law 3 — Self-Telemetry (LAW3)
 
@@ -149,13 +149,13 @@ Populated during roadmap creation.
 | LAW1-03 | Phase 5 | Complete (offline-tested: recalibrate_confidence) |
 | LAW1-04 | Phase 5 | Code complete (offline-tested span links); real alert trace_id/span_id field convention needs live confirmation |
 | LAW1-05 | Phase 5 | Code complete (check_evidence_links.py, offline-tested via MockTransport); live 100%-resolve run pending (no SigNoz stack in this env) |
-| LAW2-01 | Phase 6 | Pending |
-| LAW2-02 | Phase 6 | Pending |
-| LAW2-03 | Phase 6 | Pending |
-| LAW2-04 | Phase 6 | Pending |
-| LAW2-05 | Phase 6 | Pending |
-| LAW2-06 | Phase 6 | Pending |
-| LAW2-07 | Phase 6 | Pending |
+| LAW2-01 | Phase 6 | Complete (offline-tested: 6 checks; zero-LLM proven by a runtime guard + an AST import check) |
+| LAW2-02 | Phase 6 | Complete (offline-tested: allowlist length asserted == 1) |
+| LAW2-03 | Phase 6 | Code complete (sidecar contract offline-tested: auth, 409 lock, force-recreate-never-restart, no caller-supplied image); live rollback pending — needs a containerized rag-app + 2 image tags (HV-3) |
+| LAW2-04 | Phase 6 | Code complete (offline-tested: pre-mutation tag capture, deployment marker on success AND failure, fail-closed recovery verification); live confirmation pending (HV-3) |
+| LAW2-05 | Phase 6 | Complete (offline-tested: denial yields an evidence-linked recommendation and no action) |
+| LAW2-06 | Phase 6 | Complete (offline-tested: agentk.policy.decision span carries every enumerated field, for denials as fully as approvals) |
+| LAW2-07 | Phase 6 | Complete (offline-tested: 2-approved/2-denied across the four seeded incidents, parametrized + aggregate count) |
 | LAW3-01 | Phase 5 | Complete (pre-existing from Phase 2's record_llm_call_attributes, reused) |
 | LAW3-02 | Phase 5 | Complete (offline-tested: agentk.investigation span attributes) |
 | LAW3-03 | Phase 5 | Complete (offline-tested: agentk.hypothesis span attributes) |

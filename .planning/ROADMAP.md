@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
 - [ ] **Phase 5: Agent K Core Loop** - Build the investigation state machine with Law 1 (evidence-backed claims) and Law 3 (self-telemetry, loop breaker, cost watchdog) instrumented inline
-- [ ] **Phase 6: Policy Gate + Rollback Executor** - Build Law 2's zero-LLM policy gate and the single allowlisted, verified-outcome rollback action, executed through a privilege-isolated `deployer` sidecar (sole Docker-socket holder)
+- [x] **Phase 6: Policy Gate + Rollback Executor** (code-complete 2026-07-25; live rollback = HV-3) - Build Law 2's zero-LLM policy gate and the single allowlisted, verified-outcome rollback action, executed through a privilege-isolated `deployer` sidecar (sole Docker-socket holder)
 - [ ] **Phase 7: Report, Dashboard Polish & Evaluation** - Ship the HTML incident report, complete the Agent Health/Action Audit Trail dashboard sections, run the 12-run eval harness, and write the submission blog
 
 ## Phase Details
@@ -140,7 +140,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A `deployer` sidecar is the sole holder of the Docker socket and exposes exactly one authenticated `POST /rollback` endpoint; Agent K never holds the socket. On an approved rollback Agent K makes one authenticated HTTP call carrying no image reference, the sidecar captures the pre-mutation image tag, runs `docker compose up -d --force-recreate` (never `restart`) under a concurrency lock, and creates a SigNoz deployment marker; Agent K then re-queries SigNoz to confirm recovery before recording the verified outcome.
   5. Every policy decision (requested action, incident ID, SLO value, threshold, confidence, allowlist result, cooldown result, final verdict, reason) is recorded as a telemetry span.
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-25, no gsd) — 06-01: app/policy.py zero-LLM gate + deployer/ sidecar + app/rollback.py act stage (LAW2-01..07). 56 new tests; 158 passing offline. **Live rollback is HV-3: the RAG app is not containerized and no versioned image tags exist, so no real rollback has executed — see 06-01-SUMMARY.md.**
 **Constraint**: Safety-critical phase (the `deployer` sidecar holds the Docker socket and mutates the monitored app's running config) landing inside or just before the team-availability gap (Jul 24-26) — the sidecar isolation boundary and policy schema should be settled early, not debugged with reduced headcount. The sidecar has no dependency on Agent K's reasoning pipeline (only on the app + versioned images existing), so its skeleton (container, socket mount, one hardcoded authenticated endpoint, concurrency lock) can be scaffolded and smoke-tested well before this phase to de-risk it.
 
 ### Phase 7: Report, Dashboard Polish & Evaluation
@@ -172,5 +172,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Failure Injection + Dashboard + Alerting | 4/5 | Waves 1-2 done (code+tests); 03-05 pending (SigNoz UI, HV-2) | - |
 | 4. SigNoz MCP Integration | 1/1 | Code+tests done; live-server proof pending (HV) | 2026-07-24 |
 | 5. Agent K Core Loop | 1/1 | Code+tests done; live-stack proof pending (HV) | 2026-07-24 |
-| 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |
+| 6. Policy Gate + Rollback Executor | 1/1 | Code+tests done; live rollback pending (HV-3) | 2026-07-25 |
 | 7. Report, Dashboard Polish & Evaluation | 0/TBD | Not started | - |
