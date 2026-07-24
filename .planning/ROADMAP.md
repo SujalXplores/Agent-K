@@ -93,11 +93,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
 
   1. An admin can toggle any of the four failure scenarios via an HTTP endpoint without restarting the app, and each toggle produces its documented symptom (broken prompt / retry storm / retrieval latency / DB-pool exhaustion) visible in SigNoz traces, metrics, or logs.
-  2. Deployment-caused scenarios (prompt-regression, retry-storm) create a SigNoz deployment marker; non-deployment scenarios (retrieval-latency, DB-pool-exhaustion) do not — and the dashboard's Incident Context section reflects that distinction.
+  2. Deployment-caused scenarios (prompt-regression, retry-storm) create a deployment marker; non-deployment scenarios (retrieval-latency, DB-pool-exhaustion) do not — and the dashboard's Incident Context section reflects that distinction. **(Mechanism corrected 2026-07-24: a custom `deployment.marker` OTel span, not a SigNoz API — SigNoz has no deployment-marker API; see 03-RESEARCH.md.)**
   3. The SigNoz dashboard's Service Health and Incident Context sections show live request rate, error rate, latency, SLO/burn-rate status, deployment version, active alerts, and related traces.
   4. When a configured SLO/burn-rate/cost alert breaches, SigNoz fires a webhook to a reachable HTTP endpoint, confirmed firing end-to-end.
 
-**Plans**: TBD
+**Plans**: 5 (planned 2026-07-24, plan-checker PASS) — 03-01 flag store + deployment.marker span (FLAG-01/06); 03-02 prompt-regression + retrieval-latency (FLAG-02/04); 03-03 retry-storm + pool-exhaustion (FLAG-03/05); 03-04 webhook receiver (DASH-05); 03-05 SigNoz-UI runbook + JSON export (DASH-01/02/05, autonomous:false — gated on HV-2)
 
 ### Phase 4: SigNoz MCP Integration
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
 | 2. RAG Service Core | 4/4 | Verification gaps | - |
-| 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
+| 3. Failure Injection + Dashboard + Alerting | 0/5 | Planned (plan-checker PASS) | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |
 | 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |
