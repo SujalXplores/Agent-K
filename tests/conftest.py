@@ -25,6 +25,23 @@ def pytest_configure(config):
     )
 
 
+@pytest.fixture(autouse=True)
+def reset_flags():
+    """Reset every failure-injection flag to OFF after each test.
+
+    app.flags._flags is module-level global state that would otherwise leak a
+    toggled-on scenario from one test into every later test in the process. This
+    autouse fixture guarantees each test starts (and the next one resumes) from
+    the all-OFF default, matching the process-start posture. Imported lazily so
+    tests that never touch app.flags still load conftest without importing it.
+    """
+    yield
+    from app import flags
+
+    for name in flags.FLAG_NAMES:
+        flags.set_flag(name, False)
+
+
 @pytest.fixture
 def in_memory_exporter(monkeypatch):
     """Wire an InMemorySpanExporter as the active global tracer provider.

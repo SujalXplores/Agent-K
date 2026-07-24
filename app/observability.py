@@ -42,6 +42,19 @@ GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
 AGENTK_LLM_PROVIDER = "agentk.llm.provider"
 AGENTK_LLM_ESTIMATED_COST_USD = "agentk.llm.estimated_cost_usd"
 
+# --- fault-injection + deployment-marker attribute-name constants (Phase 3) ---
+# Single source of truth (D-06) for every attribute the four seeded failure
+# scenarios and the FLAG-06 deployment marker stamp on spans. Downstream
+# injector modules (app/rag.py, app/llm.py, app/db.py, app/flags.py) import
+# these constants and never define the attribute strings inline, so the
+# Phase 3/7 dashboard queries that filter on them cannot silently drift.
+RAG_PROMPT_REGRESSION_ACTIVE = "rag.prompt_construction.regression_active"  # FLAG-02 (app/rag.py)
+RAG_RETRIEVAL_LATENCY_INJECTED = "rag.retrieval.latency_injected"  # FLAG-04 (app/rag.py)
+AGENTK_LLM_RETRY_COUNT = "agentk.llm.retry_count"  # FLAG-03 (app/llm.py)
+AGENTK_DB_POOL_EXHAUSTED = "agentk.db.pool_exhausted"  # FLAG-05 (app/db.py)
+DEPLOYMENT_MARKER_SCENARIO = "deployment.scenario"  # FLAG-06 (app/flags.py)
+DEPLOYMENT_MARKER_VERSION = "deployment.version"  # FLAG-06 (app/flags.py)
+
 # Best-effort, zero-budget-friendly per-1K-token rate used only to produce a
 # non-zero estimated_cost_usd attribute for Law 3 reuse (Phase 5). Free-tier
 # providers (Groq/Cerebras/Gemini Flash) have effectively $0 real cost during
