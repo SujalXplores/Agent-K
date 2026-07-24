@@ -15,5 +15,6 @@ sentence-transformers==5.6.0
 openai==2.46.0
 opentelemetry-instrumentation-sqlalchemy==0.65b0
 httpx
+mcp==1.28.1
 pytest
 pytest-asyncio

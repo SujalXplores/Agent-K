@@ -55,6 +55,14 @@ AGENTK_DB_POOL_EXHAUSTED = "agentk.db.pool_exhausted"  # FLAG-05 (app/db.py)
 DEPLOYMENT_MARKER_SCENARIO = "deployment.scenario"  # FLAG-06 (app/flags.py)
 DEPLOYMENT_MARKER_VERSION = "deployment.version"  # FLAG-06 (app/flags.py)
 
+# --- SigNoz MCP query attribute-name constants (Phase 4) ---
+# Stamped by app/signoz_mcp.py's single query_signoz() call site (MCP-02) on every
+# "signoz_mcp.query" span, regardless of outcome, so Phase 5's investigation loop
+# can read them back for loop/repeated-query detection (LAW3-02) without needing
+# any MCP-specific knowledge itself.
+AGENTK_MCP_TOOL_NAME = "agentk.mcp.tool_name"
+AGENTK_MCP_QUERY_HASH = "agentk.mcp.query_hash"
+
 # Best-effort, zero-budget-friendly per-1K-token rate used only to produce a
 # non-zero estimated_cost_usd attribute for Law 3 reuse (Phase 5). Free-tier
 # providers (Groq/Cerebras/Gemini Flash) have effectively $0 real cost during
