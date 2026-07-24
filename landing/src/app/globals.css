@@ -1,0 +1,291 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Agent K design tokens.
+
+  Single source of truth for colour and motion. Every visible colour and every
+  motion timing used by components is declared here and mirrored by name in
+  `src/lib/config/theme.ts`. Components must reference these tokens (via Tailwind
+  utilities or the theme config) rather than hardcoding hex values.
+
+  Palette: a clean blue-accent SaaS base. The only palette additions on top of
+  the template blue are the three law colours:
+    - Law 1 (evidence)   -> blue
+    - Law 2 (action)     -> green
+    - Law 3 (telemetry)  -> purple
+*/
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Three Laws palette */
+  --color-law-1: var(--law-1);
+  --color-law-1-foreground: var(--law-1-foreground);
+  --color-law-1-muted: var(--law-1-muted);
+  --color-law-2: var(--law-2);
+  --color-law-2-foreground: var(--law-2-foreground);
+  --color-law-2-muted: var(--law-2-muted);
+  --color-law-3: var(--law-3);
+  --color-law-3-foreground: var(--law-3-foreground);
+  --color-law-3-muted: var(--law-3-muted);
+
+  /* Data-viz accents for mini SigNoz visuals */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  /* Layout rail */
+  --container-max: 80rem;
+  --rail-inset: 1.5rem;
+
+  /* Motion timing (mirrored in theme.ts) */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-smooth: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Marquee / beam animations used by tech stack + pipeline */
+  --animate-marquee: marquee var(--duration, 40s) linear infinite;
+  --animate-marquee-vertical: marquee-vertical var(--duration, 40s) linear infinite;
+  --animate-aurora: aurora 24s ease-in-out infinite alternate;
+  @keyframes marquee {
+  from {
+    transform: translateX(0);}
+  to {
+    transform: translateX(calc(-100% - var(--gap)));}}
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);}
+  to {
+    transform: translateY(calc(-100% - var(--gap)));}}
+  @keyframes aurora {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  --animate-shiny-text: shiny-text 8s infinite;
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;}
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;}}
+  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);}}
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);}
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);}
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);}
+  100% {
+    transform: translateZ(0) rotate(360deg);}}}
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.99 0.004 250);
+  --foreground: oklch(0.21 0.03 265);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.03 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.03 265);
+
+  --primary: oklch(0.46 0.19 258);
+  --primary-foreground: oklch(0.985 0.006 258);
+  --secondary: oklch(0.968 0.012 255);
+  --secondary-foreground: oklch(0.3 0.05 265);
+  --muted: oklch(0.972 0.006 260);
+  --muted-foreground: oklch(0.44 0.03 262);
+  --accent: oklch(0.955 0.02 258);
+  --accent-foreground: oklch(0.3 0.06 265);
+
+  --destructive: oklch(0.52 0.21 25);
+  --destructive-foreground: oklch(0.985 0.01 25);
+  --success: oklch(0.55 0.15 155);
+  --success-foreground: oklch(0.985 0.01 155);
+
+  --border: oklch(0.92 0.008 260);
+  --input: oklch(0.92 0.008 260);
+  --ring: oklch(0.46 0.19 258);
+
+  /*
+    Law palette (light). These read as small text labels in several places
+    (law name, evidence type, policy titles), so the base tokens are darkened
+    enough to clear WCAG AA (4.5:1) as text on white. The brighter, more vivid
+    values live on the JS `brandColor` constants used only for decorative
+    canvas/SVG gradients (beams, border-beam) where contrast does not apply.
+  */
+  --law-1: oklch(0.48 0.21 258);
+  --law-1-foreground: oklch(0.985 0.006 258);
+  --law-1-muted: oklch(0.955 0.03 258);
+  --law-2: oklch(0.5 0.15 156);
+  --law-2-foreground: oklch(0.985 0.01 158);
+  --law-2-muted: oklch(0.95 0.04 158);
+  --law-3: oklch(0.48 0.22 300);
+  --law-3-foreground: oklch(0.985 0.01 300);
+  --law-3-muted: oklch(0.955 0.035 300);
+
+  /* Data-viz accents stay vivid: used as chart fills/strokes (>=3:1), not text. */
+  --chart-1: oklch(0.55 0.208 258);
+  --chart-2: oklch(0.58 0.16 158);
+  --chart-3: oklch(0.55 0.21 300);
+  --chart-4: oklch(0.68 0.15 200);
+  --chart-5: oklch(0.72 0.16 65);
+}
+
+.dark {
+  --background: oklch(0.16 0.016 264);
+  --foreground: oklch(0.96 0.005 258);
+
+  --card: oklch(0.195 0.02 264);
+  --card-foreground: oklch(0.96 0.005 258);
+  --popover: oklch(0.195 0.02 264);
+  --popover-foreground: oklch(0.96 0.005 258);
+
+  --primary: oklch(0.65 0.19 258);
+  --primary-foreground: oklch(0.15 0.02 264);
+  --secondary: oklch(0.27 0.03 264);
+  --secondary-foreground: oklch(0.96 0.005 258);
+  --muted: oklch(0.25 0.02 264);
+  --muted-foreground: oklch(0.77 0.028 262);
+  --accent: oklch(0.3 0.04 262);
+  --accent-foreground: oklch(0.96 0.005 258);
+
+  --destructive: oklch(0.68 0.2 24);
+  --destructive-foreground: oklch(0.98 0.01 24);
+  --success: oklch(0.7 0.16 158);
+  --success-foreground: oklch(0.16 0.02 158);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.65 0.19 258);
+
+  --law-1: oklch(0.68 0.17 258);
+  --law-1-foreground: oklch(0.15 0.02 264);
+  --law-1-muted: oklch(0.3 0.08 258 / 45%);
+  --law-2: oklch(0.72 0.16 158);
+  --law-2-foreground: oklch(0.15 0.02 158);
+  --law-2-muted: oklch(0.32 0.08 158 / 45%);
+  --law-3: oklch(0.7 0.18 300);
+  --law-3-foreground: oklch(0.15 0.02 264);
+  --law-3-muted: oklch(0.32 0.09 300 / 45%);
+
+  --chart-1: oklch(0.68 0.17 258);
+  --chart-2: oklch(0.72 0.16 158);
+  --chart-3: oklch(0.7 0.18 300);
+  --chart-4: oklch(0.74 0.13 200);
+  --chart-5: oklch(0.78 0.15 65);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+    color: var(--foreground);
+  }
+
+  /* Respect users who prefer reduced motion: stop decorative looping motion
+     and disable smooth scrolling. Entrance reveals are gated in JS so their
+     end-state stays visible. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    /* Freeze decorative looping motion. These leave a readable end state
+       (a static gradient / a stopped marquee). Text-clip effects that would
+       become unreadable when frozen are swapped for plain text in JS instead. */
+    .animate-aurora,
+    .animate-shimmer-slide,
+    .animate-spin-around,
+    .motion-safe-only {
+      animation: none !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Subtle radial glow used behind the hero and CTA. */
+  .bg-radial-primary {
+    background: radial-gradient(
+      60% 60% at 50% 0%,
+      color-mix(in oklch, var(--primary) 22%, transparent) 0%,
+      transparent 70%
+    );
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
