@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Investigations — Agent K{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Investigations</h2>
+  {% if views %}
+  <dl class="meta" style="grid-template-columns:repeat(4,max-content);gap:4px 32px">
+    <dt>Total</dt><dt>Rollbacks</dt><dt>Denied</dt><dt>Needs human</dt>
+    <dd style="font-size:22px;font-weight:700">{{ counts.total }}</dd>
+    <dd style="font-size:22px;font-weight:700">{{ counts.executed }}</dd>
+    <dd style="font-size:22px;font-weight:700">{{ counts.denied }}</dd>
+    <dd style="font-size:22px;font-weight:700">{{ counts.needs_human }}</dd>
+  </dl>
+  {% else %}
+  <p class="empty">
+    No investigations yet.<br>
+    One starts when a SigNoz alert reaches <code>POST /alerts/webhook</code>.
+  </p>
+  {% endif %}
+</div>
+
+{% if views %}
+<div class="card">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Outcome</th><th>Alert</th><th>Started</th><th>Top claim</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for view in views %}
+        <tr>
+          <td><span class="pill tone-{{ view.tone }}">{{ view.status_label }}</span></td>
+          <td>
+            {{ view.alertname }}
+            <div class="mono" style="color:var(--muted);font-size:12px">{{ view.service }}</div>
+          </td>
+          <td class="mono" style="font-size:12px">{{ view.started_at }}</td>
+          <td>
+            {% if view.top_claim %}
+              {{ view.top_claim.claim }}
+              <div style="color:var(--muted);font-size:12px">
+                {{ "%.0f"|format(view.top_claim.confidence * 100) }}% confidence
+              </div>
+            {% else %}
+              <span style="color:var(--muted)">no evidence-backed claim</span>
+            {% endif %}
+          </td>
+          <td><a href="/report/{{ view.id }}">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

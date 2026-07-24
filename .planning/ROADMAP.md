@@ -156,7 +156,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Each of the four seeded incidents has been run 3 times (12 runs total) with diagnosis correctness, cost, time-to-diagnosis, and rollback result recorded per run, staying within Groq free-tier rate limits with a proven-working Cerebras overflow path.
   5. The two rollback scenarios have a scripted manual-baseline comparison, and the submission blog reports all of this honestly (including any failed/confusing runs) with AI-assistant usage disclosed and demo-script screenshots/footage included.
 
-**Plans**: TBD
+**Plans**: 07-01 (REPT-01/02/03, report page — complete); DASH-03/04, EVAL-01..04, SUB-01/02 remain
 **Constraint**: Falls entirely within the team-availability gap (Jul 24-26) and is timeline-sensitive by nature (12 paced eval runs + blog writing) — the Day 5-6 clean-machine-rebuild and Groq-rate-limit checkpoints (research-flagged) must be validated before this phase's eval runs start, with room to cut scope (smaller embedding model, pre-baked corpus) if either fails.
 **UI hint**: yes
 
@@ -173,4 +173,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. SigNoz MCP Integration | 1/1 | Code+tests done; live-server proof pending (HV) | 2026-07-24 |
 | 5. Agent K Core Loop | 1/1 | Code+tests done; live-stack proof pending (HV) | 2026-07-24 |
 | 6. Policy Gate + Rollback Executor | 1/1 | Code+tests done; live rollback pending (HV-3) | 2026-07-25 |
-| 7. Report, Dashboard Polish & Evaluation | 0/TBD | Not started | - |
+| 7. Report, Dashboard Polish & Evaluation | 1/4 | 07-01 done (REPT-01/02/03); DASH-03/04, EVAL-01..04, SUB-01/02 pending | - |

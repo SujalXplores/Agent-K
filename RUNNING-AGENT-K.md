@@ -1,8 +1,9 @@
 # Running Agent K — Team Guide
 
 This is the single "how do I run this thing" doc for teammates. It covers the
-current state of the codebase (Phases 1-5 built, Phases 6-7 not started) and
-how to bring up every piece that exists today. For SigNoz-specific standup
+current state of the codebase (Phases 1-6 built, Phase 7 partially — the report
+page is done, the dashboard/eval/blog are not) and how to bring up every piece
+that exists today. For SigNoz-specific standup
 detail/troubleshooting, see [SIGNOZ-RUNBOOK.md](SIGNOZ-RUNBOOK.md) — this doc
 assumes that one for anything SigNoz-install-specific and focuses on the app
 itself.
@@ -17,7 +18,7 @@ itself.
 | Agent K investigation loop (`app/investigation.py`) | Built (Phase 5), wired into the webhook | Same process as the app above — no separate process yet |
 | Law 2 policy gate (`app/policy.py`) | Built (Phase 6) | In-process, runs at the end of each investigation |
 | `deployer` sidecar (Law 2 rollback executor) | Built (Phase 6), **not yet live-verified** | Docker, `deployer` service |
-| Incident report page (`/report/{id}`) | **Not built** (Phase 7) | — |
+| Incident report page (`/report`, `/report/{id}`) | Built (Phase 7) | Same FastAPI process |
 | Hand-built SigNoz dashboard/alerts | **Not built** (Phase 3 wave 3 / Phase 7) | SigNoz UI |
 
 There is no `docker-compose` that starts "the whole product" in one command —
@@ -55,7 +56,9 @@ actually reads via `os.getenv`/`os.environ`:
 | `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `GEMINI_API_KEY` | `app/llm.py` | Only the one matching `LLM_PROVIDER` is required; client construction now fails fast (`MissingProviderKeyError`) instead of silently leaking an unrelated key |
 | `EMBEDDING_MODEL` | `app/embeddings.py` | Defaults to `all-MiniLM-L6-v2` if unset |
 | `ADMIN_TOKEN` | `app/flags.py` (`/admin/flags` POST) | If unset, the admin endpoint is unauthenticated (fine for local demo only) |
-| `SIGNOZ_URL`, `SIGNOZ_API_KEY` | `app/signoz_mcp.py` | Passed through to the SigNoz MCP server subprocess |
+| `SIGNOZ_URL` | `app/signoz_mcp.py`, `app/claims.py` | Passed to the MCP server subprocess **and** used as the base for every evidence deep link. Defaults to `http://localhost:3301`, which is **wrong for this deployment** — set it to `http://localhost:8080` or all report-page links 404 |
+| `SIGNOZ_API_KEY` | `app/signoz_mcp.py` | Passed through to the SigNoz MCP server subprocess |
+| `DEPLOYER_URL`, `DEPLOYER_TOKEN` | `app/rollback.py` | Where the deployer sidecar lives and the shared token authenticating `POST /rollback`. `DEPLOYER_TOKEN` must match the sidecar's own (see §6a) |
 | `SIGNOZ_MCP_COMMAND` | `app/signoz_mcp.py` | Path/command to launch the SigNoz MCP server binary |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `app/telemetry.py` | Defaults to SigNoz's OTLP-HTTP ingest, `http://localhost:4318` |
 | `OTEL_SERVICE_NAME` | `app/telemetry.py` | Service name shown in SigNoz |
@@ -127,9 +130,9 @@ curl -X POST http://localhost:8000/alerts/webhook -H "Content-Type: application/
 
 This starts a background investigation (`app/investigation.py`) that queries
 SigNoz via the MCP wrapper, forms an LLM hypothesis, and reaches a terminal
-`REPORTED`/`ESCALATED` state. There's no UI to view the result yet (that's
-Phase 7's `/report/{id}`) — for now, watch the `agentk.investigation` /
-`agentk.hypothesis` spans in SigNoz, or add a temporary print/log statement.
+`REPORTED`/`ESCALATED` state. Open **http://localhost:8000/report** to read the
+result (see §6b), or watch the `agentk.investigation` / `agentk.hypothesis`
+spans in SigNoz.
 
 ### Toggling failure scenarios (Phase 3)
 
@@ -180,21 +183,66 @@ real rollback has ever run**, because the app isn't containerized. To close it:
 4. Confirm the `deployment.marker` span and the `agentk.policy.decision` /
    `agentk.action.rollback` spans render in SigNoz.
 
+## 6b. Reading the incident report (Phase 7)
+
+Once the app is running, the report pages are served from the same process:
+
+- **http://localhost:8000/report** — every past investigation, newest first, with a
+  count strip (rollbacks / denied / needs-human).
+- **http://localhost:8000/report/{id}** — one incident's full RCA: claims with
+  recalibrated confidence, evidence table with clickable SigNoz links, all six
+  policy checks with pass/fail, the action outcome, and Agent K's own
+  token/query/duration numbers.
+
+Three things the page deliberately does, worth knowing before you read it:
+
+- A **denied** verdict is shown as a normal, correct outcome — not an error. Agent K
+  declining to act is the safety gate working.
+- A rollback that executed but whose recovery could **not** be verified in SigNoz is
+  never shown as a success. It says so explicitly.
+- A loop-breaker/cost-watchdog investigation renders as **needs human** with no
+  verdict — it never reached the act stage, so there is nothing to report.
+
+> **Evidence links are dead until `SIGNOZ_URL` is set correctly.** `app/claims.py`
+> defaults to `http://localhost:3301`, but this deployment's SigNoz serves on
+> **8080**. Set `SIGNOZ_URL=http://localhost:8080` in `.env` or every "Open in
+> SigNoz" link on the report page 404s.
+
+To see the pages without standing up the whole live chain (no DB, no API key, no
+server needed):
+
+```bash
+python -m scripts.seed_demo_report
+```
+
+That renders `build/report-preview/*.html` from **synthetic** investigations. It is a
+development aid only — never use its output as a screenshot in the demo video, blog,
+or eval results.
+
 ## 7. Running tests
 
 ```bash
 pytest -q
 ```
 
-Currently: **158 passed, 1 skipped** (the skipped test needs a live DB
+Currently: **188 passed, 1 skipped** (the skipped test needs a live DB
 connection and is excluded by default — see `tests/test_integration_rag.py`).
 
 ## 8. Current gaps / what NOT to assume works yet
 
 - **No rollback has ever actually executed.** The policy gate and sidecar are
   built and tested, but the app isn't containerized — see HV-3 in §6a above.
-- **No incident report page, no eval harness, no finished dashboard** —
-  Phase 7 has zero code.
+- **The full live chain has never run once.** Every phase from 2 through 7 is
+  offline-tested with the live half mocked. No investigation has ever gone
+  alert → MCP evidence → LLM hypothesis → policy verdict for real, because no
+  `signoz-mcp-server` binary is installed and the MCP tool names in
+  `app/investigation.py`'s `EVIDENCE_QUERY_PLAN` are still guesses. This is the
+  single biggest risk left — everything else is downstream of it.
+- **The report page renders, but its evidence links are dead by default** —
+  `SIGNOZ_URL` must be set to `http://localhost:8080` (see §3).
+- **No eval harness and no finished dashboard** — EVAL-01..04 and DASH-03/04
+  have zero code, and the SUB-01 AI-usage disclosure is unwritten
+  (that one is a disqualification risk and takes five minutes).
 - Several Phase 2-5 requirements are marked "code complete, needs human
   verification" in `.planning/REQUIREMENTS.md` — the code and offline tests
   are done, but nobody has yet: (a) run `/ask` against a real Groq/Cerebras/

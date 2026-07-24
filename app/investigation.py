@@ -142,6 +142,11 @@ class Investigation:
     incomplete: bool = False
     loop_breaker_fired: bool = False
     cost_watchdog_fired: bool = False
+    # Wall-duration of the investigation, stamped once it reaches a terminal state.
+    # Stays None only if the process died mid-investigation. Kept on the record (not
+    # just on the span) so Phase 7's report page can show the same Law 3 number a
+    # human would otherwise have to open SigNoz to read.
+    duration_s: float | None = None
     watchdog_events: list[dict] = field(default_factory=list)
     last_evidence_text: list[str] = field(default_factory=list)
     # Law 2 act-stage record (Phase 6). Both stay None for an incomplete
@@ -430,6 +435,7 @@ async def run_investigation(alert: AlertItem) -> Investigation:
             logger.exception("act stage failed unexpectedly")
 
         duration_s = time.monotonic() - inv.started_at
+        inv.duration_s = duration_s
         span.set_attribute(AGENTK_INVESTIGATION_ID, inv.id)
         span.set_attribute(AGENTK_INVESTIGATION_STATE, inv.state.value)
         span.set_attribute(AGENTK_INVESTIGATION_INCOMPLETE, inv.incomplete)

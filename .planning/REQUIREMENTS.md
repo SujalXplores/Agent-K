@@ -77,9 +77,9 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Incident Report (REPT)
 
-- [ ] **REPT-01**: A small FastAPI-served HTML report page renders a completed investigation's structured RCA (claims, evidence, policy verdict, verification result) with clickable SigNoz deep links
-- [ ] **REPT-02**: The report page is addressable by incident ID (`/report/{id}`) and a simple index/list view lets a human browse past investigations, not only the latest one
-- [ ] **REPT-03**: An investigation that hits the loop breaker or cost watchdog renders in the report/dashboard as an explicit incomplete/needs-human state (passive escalation — no notification channel is built)
+- [x] **REPT-01**: A small FastAPI-served HTML report page renders a completed investigation's structured RCA (claims, evidence, policy verdict, verification result) with clickable SigNoz deep links
+- [x] **REPT-02**: The report page is addressable by incident ID (`/report/{id}`) and a simple index/list view lets a human browse past investigations, not only the latest one
+- [x] **REPT-03**: An investigation that hits the loop breaker or cost watchdog renders in the report/dashboard as an explicit incomplete/needs-human state (passive escalation — no notification channel is built)
 
 ### Evaluation Harness (EVAL)
 
@@ -162,9 +162,9 @@ Populated during roadmap creation.
 | LAW3-04 | Phase 5 | Complete (offline-tested: loop breaker fires, recorded, escalates w/ partial evidence) |
 | LAW3-05 | Phase 5 | Complete (offline-tested: cost watchdog fires on forced token-budget overrun) |
 | LAW3-06 | Phase 5 | Complete (adversarial repeated-query test proves loop breaker actually fires) |
-| REPT-01 | Phase 7 | Pending |
-| REPT-02 | Phase 7 | Pending |
-| REPT-03 | Phase 7 | Pending |
+| REPT-01 | Phase 7 | Complete (offline-tested: claims, evidence links, verdict, verification render) |
+| REPT-02 | Phase 7 | Complete (offline-tested: /report/{id} + /report index, newest-first) |
+| REPT-03 | Phase 7 | Complete (offline-tested: loop-breaker/cost-watchdog render as needs-human) |
 | EVAL-01 | Phase 7 | Pending |
 | EVAL-02 | Phase 7 | Pending |
 | EVAL-03 | Phase 7 | Pending |

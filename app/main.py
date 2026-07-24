@@ -19,6 +19,7 @@ from app import alerts_webhook
 from app import flags
 from app import llm as llm_module
 from app import rag as rag_module
+from app import report
 from app.db import get_session, setup_db_instrumentation
 from app.schemas import (
     AskRequest,
@@ -104,6 +105,11 @@ async def get_flags() -> FlagStateResponse:
 # in a request span. This is the reusable entrypoint Agent K's Phase-5 loop
 # consumes as its investigation trigger.
 app.include_router(alerts_webhook.router)
+
+# Human-facing incident report pages (REPT-01/02/03). Registered here in step 2 -
+# BEFORE FastAPIInstrumentor.instrument_app below - for the same reason as every
+# route above: anything added after instrumentation is never wrapped in a span.
+app.include_router(report.router)
 
 
 # 3. Wire OTel providers (console + OTLP-HTTP dual exporters, D-06/D-07).

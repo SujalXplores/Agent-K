@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Incident {{ view.alertname }} — Agent K{% endblock %}
+
+{% block content %}
+{# Status first: a reader must learn what Agent K did (or refused to do) before
+   reading any of its reasoning. #}
+<div class="banner tone-{{ view.tone }}">
+  <div class="label">{{ view.status_label }}</div>
+  <div class="detail">{{ view.status_detail }}</div>
+</div>
+
+<div class="card">
+  <h2>Incident</h2>
+  <dl class="meta">
+    <dt>Alert</dt><dd>{{ view.alertname }}</dd>
+    <dt>Service</dt><dd class="mono">{{ view.service }}</dd>
+    <dt>Started</dt><dd class="mono">{{ view.started_at }}</dd>
+    <dt>Investigation</dt><dd class="mono">{{ view.id }}</dd>
+    <dt>Final state</dt><dd class="mono">{{ view.state }}</dd>
+  </dl>
+</div>
+
+{% if view.needs_human %}
+{# REPT-03: passive escalation. This block is the entire handoff — no notification
+   channel is built, by design. #}
+<div class="card">
+  <h2>Why this needs a human</h2>
+  <p style="margin-top:0">{{ view.escalation_reason }}</p>
+  {% if view.watchdog_events %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Guardrail</th><th>Detail</th></tr></thead>
+      <tbody>
+        {% for event in view.watchdog_events %}
+        <tr>
+          <td class="mono">{{ event.kind }}</td>
+          <td class="mono">
+            {%- for key, value in event.items() if key != "kind" -%}
+              {{ key }}={{ value }}{% if not loop.last %}, {% endif %}
+            {%- endfor -%}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Root cause claims</h2>
+  {% if view.claims %}
+    {% for claim in view.claims %}
+    <div {% if not loop.first %}style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)"{% endif %}>
+      <p style="margin:0 0 8px;font-size:16px">{{ claim.claim }}</p>
+      <p style="margin:0 0 10px;color:var(--muted);font-size:13px">
+        Confidence <strong style="color:var(--text)">{{ "%.0f"|format(claim.confidence * 100) }}%</strong>
+        — proposed by the model, then recalibrated in code against evidence strength.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Evidence</th><th>Query</th><th>Time range</th><th>Link</th></tr></thead>
+          <tbody>
+            {% for item in claim.evidence %}
+            <tr>
+              <td><span class="pill tone-neutral">{{ item.type }}</span></td>
+              <td class="mono">{{ item.query }}</td>
+              <td class="mono">{{ item.time_range }}</td>
+              <td><a href="{{ item.link }}" target="_blank" rel="noopener">Open in SigNoz</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    {# Not an error state: Law 1 means an unsupported claim is withheld, not softened. #}
+    <p class="empty" style="padding:20px 12px">
+      No evidence-backed claim was published for this incident.<br>
+      Agent K withholds any claim it cannot link to SigNoz evidence.
+    </p>
+  {% endif %}
+</div>
+
+{% if view.decision %}
+<div class="card">
+  <h2>Policy decision (Law 2)</h2>
+  <dl class="meta" style="margin-bottom:16px">
+    <dt>Action</dt><dd class="mono">{{ view.decision.action }}</dd>
+    <dt>Verdict</dt>
+    <dd>
+      <span class="pill {% if view.decision.approved %}tone-ok{% else %}tone-info{% endif %}">
+        {{ view.decision.verdict }}
+      </span>
+    </dd>
+    <dt>Diagnosed as</dt><dd class="mono">{{ view.decision.incident_type or "undetermined" }}</dd>
+    <dt>Target</dt><dd class="mono">{{ view.decision.target_service or "—" }}</dd>
+  </dl>
+
+  {# All six checks, always — for both verdicts. This table is the "code-enforced,
+     not trust-the-model" claim made inspectable. #}
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        {% for check in view.decision.checks %}
+        <tr>
+          <td class="mono">{{ check.name }}</td>
+          <td class="{% if check.passed %}pass{% else %}fail{% endif %}">
+            {% if check.passed %}&#10003; pass{% else %}&#10007; fail{% endif %}
+          </td>
+          <td>{{ check.detail }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if view.decision.recommendation %}
+  <div class="banner tone-info" style="margin:16px 0 0">
+    <div class="label" style="font-size:14px">Recommended next step</div>
+    <div class="detail">{{ view.decision.recommendation }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if view.outcome %}
+<div class="card">
+  <h2>Action outcome</h2>
+  <dl class="meta">
+    <dt>Action</dt><dd class="mono">{{ view.outcome.kind }}</dd>
+    <dt>Status</dt><dd class="mono">{{ view.outcome.status }}</dd>
+    {% if view.outcome.http_status %}
+    <dt>Sidecar response</dt><dd class="mono">HTTP {{ view.outcome.http_status }}</dd>
+    {% endif %}
+    {% if view.outcome.previous_image %}
+    <dt>Rolled back from</dt><dd class="mono">{{ view.outcome.previous_image }}</dd>
+    {% endif %}
+    {% if view.outcome.rolled_back_to %}
+    <dt>Rolled back to</dt><dd class="mono">{{ view.outcome.rolled_back_to }}</dd>
+    {% endif %}
+    <dt>Recovery</dt>
+    <dd>
+      <span class="pill {% if view.outcome.verified %}tone-ok{% else %}tone-warn{% endif %}">
+        {% if view.outcome.verified %}verified in SigNoz{% else %}NOT verified{% endif %}
+      </span>
+    </dd>
+    <dt>Detail</dt><dd>{{ view.outcome.verification_detail }}</dd>
+  </dl>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Agent self-telemetry (Law 3)</h2>
+  <dl class="meta">
+    <dt>SigNoz queries</dt><dd class="mono">{{ view.mcp_query_count }}</dd>
+    <dt>Query failures</dt><dd class="mono">{{ view.mcp_query_failures }}</dd>
+    <dt>Tokens used</dt><dd class="mono">{{ view.total_tokens }}</dd>
+    <dt>Duration</dt>
+    <dd class="mono">{% if view.duration_s is not none %}{{ "%.2f"|format(view.duration_s) }}s{% else %}—{% endif %}</dd>
+  </dl>
+</div>
+{% endblock %}
