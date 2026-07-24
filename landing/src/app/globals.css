@@ -278,6 +278,8 @@
        (a static gradient / a stopped marquee). Text-clip effects that would
        become unreadable when frozen are swapped for plain text in JS instead. */
     .animate-aurora,
+    .animate-marquee,
+    .animate-marquee-vertical,
     .animate-shimmer-slide,
     .animate-spin-around,
     .motion-safe-only {
