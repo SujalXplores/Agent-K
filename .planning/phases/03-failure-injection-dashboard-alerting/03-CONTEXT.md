@@ -37,18 +37,21 @@ The four seeded scenarios and their injection points in the existing codebase:
   never wrapped in spans (see the anti-pattern note at the top of main.py).
 
 ### Deployment markers (FLAG-06)
-- **SigNoz API call on toggle.** When a *deployment-class* scenario (prompt-regression, retry-storm)
-  is toggled **on**, the app makes an explicit call to SigNoz to create a deployment / change-event
-  marker so it appears live in the dashboard's Incident Context. The two *non-deployment* scenarios
-  (retrieval-latency, DB-pool-exhaustion) deliberately skip this call — that asymmetry is the whole
-  point of FLAG-06 and Success Criterion 2.
-- **Rejected:** encoding the version in the OTel resource and bumping it per scenario. The OTel
-  resource is fixed at process start, so a live flag toggle can't change it without a restart —
-  directly conflicts with FLAG-01's no-restart requirement.
-- **For the researcher:** confirm the exact SigNoz mechanism/endpoint/payload for creating a
-  deployment or change-event marker in the self-hosted (Foundry) build — API route, auth
-  (SIGNOZ_API_KEY), and the field that distinguishes a deployment marker from a plain annotation.
-  This is the highest-uncertainty item in the phase.
+- **CORRECTED post-research (03-RESEARCH.md, 2026-07-24):** SigNoz has **no native deployment-marker
+  or annotation API** (tracked as `SigNoz/signoz#6162`, closed without shipped support). The
+  originally-locked "SigNoz API call on toggle" mechanism is therefore **not implementable** and is
+  superseded.
+- **New mechanism — emit a custom `deployment.marker` OTel span.** When a *deployment-class* scenario
+  (prompt-regression, retry-storm) is toggled **on**, the app emits a dedicated `deployment.marker`
+  span (with a version/scenario attribute) through the existing OTLP pipeline — no new package, no
+  external API. The two *non-deployment* scenarios (retrieval-latency, DB-pool-exhaustion) deliberately
+  emit **no** such span. That asymmetry — a `deployment.marker` span present for 1-2, absent for 3-4 —
+  is the queryable signal the Incident Context dashboard section reads, satisfying FLAG-06 and Success
+  Criterion 2. This also matches the deployment-marker convention already locked in PROJECT.md for the
+  Phase 6 deployer sidecar. The marker span's attribute names go in [app/observability.py](../../../app/observability.py).
+- **Rejected:** encoding the version in the OTel resource and bumping it per scenario (resource is
+  fixed at process start — conflicts with FLAG-01's no-restart rule); calling a SigNoz deployment API
+  (does not exist).
 
 ### Alert webhook receiver (DASH-05)
 - **Reusable Agent K stub, not a throwaway.** Build a real `POST /alerts/webhook` entrypoint in its
