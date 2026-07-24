@@ -169,7 +169,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
 | 2. RAG Service Core | 4/4 | Verification gaps | - |
-| 3. Failure Injection + Dashboard + Alerting | 0/5 | Planned (plan-checker PASS) | - |
+| 3. Failure Injection + Dashboard + Alerting | 4/5 | Waves 1-2 done (code+tests); 03-05 pending (SigNoz UI, HV-2) | - |
 | 4. SigNoz MCP Integration | 0/TBD | Not started | - |
 | 5. Agent K Core Loop | 0/TBD | Not started | - |
 | 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |

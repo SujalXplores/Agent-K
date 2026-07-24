@@ -128,17 +128,17 @@ Populated during roadmap creation.
 | RAG-02 | Phase 2 | Complete |
 | RAG-03 | Phase 2 | Reopened |
 | RAG-04 | Phase 2 | Needs human verification |
-| FLAG-01 | Phase 3 | Pending |
-| FLAG-02 | Phase 3 | Pending |
-| FLAG-03 | Phase 3 | Pending |
-| FLAG-04 | Phase 3 | Pending |
-| FLAG-05 | Phase 3 | Pending |
-| FLAG-06 | Phase 3 | Pending |
-| DASH-01 | Phase 3 | Pending |
-| DASH-02 | Phase 3 | Pending |
+| FLAG-01 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
+| FLAG-02 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
+| FLAG-03 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
+| FLAG-04 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
+| FLAG-05 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
+| FLAG-06 | Phase 3 | Code complete via deployment.marker span (offline-tested; HV-2 for SigNoz visibility) |
+| DASH-01 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
+| DASH-02 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
 | DASH-03 | Phase 7 | Pending |
 | DASH-04 | Phase 7 | Pending |
-| DASH-05 | Phase 3 | Pending |
+| DASH-05 | Phase 3 | Code half done (POST /alerts/webhook, offline-tested); SigNoz alert rule + channel = Plan 03-05 (HV-2) |
 | MCP-01 | Phase 4 | Pending |
 | MCP-02 | Phase 4 | Pending |
 | INV-01 | Phase 5 | Pending |
