@@ -16,17 +16,41 @@ services:
       timeout: 5s
       retries: 5
 
+  # The monitored RAG service - the ONLY thing Agent K is ever allowed to act on.
+  #
+  # RAG_IMAGE_TAG is what a rollback actually changes. The deployer sidecar writes
+  # the known-good tag into .env.deploy and re-creates this service, so "roll back"
+  # means "re-create rag-app from the previous tag" and nothing more. Default is
+  # v1-good so a plain `docker compose up` never starts the broken build by accident.
+  rag-app:
+    image: agent-k-rag:${RAG_IMAGE_TAG:-v1-good}
+    container_name: rag-app
+    depends_on:
+      rag-postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentk:agentk@rag-postgres:5432/agentk
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      SIGNOZ_URL: ${SIGNOZ_URL:-http://host.docker.internal:8080}
+      SIGNOZ_API_KEY: ${SIGNOZ_API_KEY:-}
+      DEPLOYER_URL: http://deployer:9000
+      DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:?DEPLOYER_TOKEN must be set}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+      OTEL_SERVICE_NAME: agent-k-rag-service
+      # Empty in v1-good. The v2-broken image is this same image run with
+      # AGENT_K_SEEDED_FLAGS=prompt_regression - see Dockerfile.
+      AGENT_K_SEEDED_FLAGS: ${AGENT_K_SEEDED_FLAGS:-}
+
   # The Law 2 rollback executor (LAW2-03). THE ONLY container that gets the
   # Docker socket - Agent K itself must never be given one, which is what makes
   # "the action stays inside the permitted sandbox" a structural guarantee rather
   # than a promise Agent K makes about itself.
-  #
-  # NOT YET RUNNABLE END-TO-END: `ROLLBACK_TARGET_SERVICE: rag-app` names a
-  # service that does not exist in this file yet, because the RAG app is not
-  # containerized (it runs via `uvicorn app.main:app`). Bringing this up will
-  # start the sidecar and serve /healthz, but an actual rollback needs a
-  # containerized rag-app with two versioned image tags. See RUNNING-AGENT-K.md
-  # "Phase 6 human verification" for the exact remaining steps.
   deployer:
     build:
       context: .

@@ -33,6 +33,11 @@ from app.telemetry import setup_telemetry
 # 1. Create the app.
 app = fastapi.FastAPI()
 
+# Apply any deliberately-seeded failure scenarios (AGENT_K_SEEDED_FLAGS). Empty in
+# every normal deployment; set only in the v2-broken demo image so the Law 2
+# rollback has a genuinely bad build to roll back FROM. Logs loudly when non-empty.
+flags.seed_flags_from_env()
+
 
 # 2. Register routes (/healthz from Phase 1, /ask added in Phase 2 - D-05).
 @app.get("/healthz")

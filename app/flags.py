@@ -24,11 +24,14 @@ mirroring the established app/rag.py and app/llm.py convention.
 from __future__ import annotations
 
 import hmac
+import logging
 import os
 
 from opentelemetry import trace
 
 from app.observability import DEPLOYMENT_MARKER_SCENARIO, DEPLOYMENT_MARKER_VERSION
+
+logger = logging.getLogger(__name__)
 
 # The four seeded failure scenarios (locked names — injectors key off these exactly).
 FLAG_NAMES: tuple[str, ...] = (
@@ -61,6 +64,37 @@ def set_flag(name: str, enabled: bool) -> None:
 def get_all() -> dict[str, bool]:
     """Return a copy of the current state of all four flags."""
     return dict(_flags)
+
+
+# Env var naming the scenarios a process should boot with already ON, used to build
+# the deliberately-broken `v2-broken` image the Law 2 rollback demo rolls back FROM
+# (HV-3). See seed_flags_from_env for why this does not weaken the all-OFF default.
+SEEDED_FLAGS_ENV = "AGENT_K_SEEDED_FLAGS"
+
+
+def seed_flags_from_env(raw: str | None = None) -> list[str]:
+    """Turn the flags named in AGENT_K_SEEDED_FLAGS ON at boot. Returns those set.
+
+    This does NOT weaken the "never boots degraded" property in the module
+    docstring: the default is still all-OFF, and a process can only start degraded
+    when an operator explicitly names scenarios in the environment - which is
+    precisely what building a known-bad demo image means. Unknown names are ignored
+    with a warning rather than raising, so a typo in a compose file degrades to
+    "boots healthy" instead of "refuses to boot".
+    """
+    value = os.getenv(SEEDED_FLAGS_ENV, "") if raw is None else raw
+    seeded: list[str] = []
+    for name in (part.strip() for part in value.split(",")):
+        if not name:
+            continue
+        if name not in _flags:
+            logger.warning("ignoring unknown flag %r in %s", name, SEEDED_FLAGS_ENV)
+            continue
+        _flags[name] = True
+        seeded.append(name)
+    if seeded:
+        logger.warning("BOOTING WITH FAILURE SCENARIOS ENABLED: %s", ", ".join(seeded))
+    return seeded
 
 
 def token_matches(provided: str | None) -> bool:

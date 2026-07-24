@@ -9,6 +9,7 @@ real SigNoz MCP server, live stack, or LLM provider credential is required.
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 from mcp.types import CallToolResult, TextContent
@@ -495,3 +496,29 @@ def test_signoz_web_url_is_preferred_over_a_hand_built_link():
 
 def test_missing_web_url_falls_back_to_the_built_link():
     assert inv_module.extract_web_url('{"trace_id": "abc"}') is None
+
+
+def test_time_window_is_frozen_for_the_whole_investigation():
+    """Regression: the loop breaker is defeated by a moving timestamp.
+
+    An open-ended alert's window ends at "now". If that is recomputed per query,
+    the `end` millisecond changes between iterations, so two IDENTICAL queries hash
+    differently and the LAW3-04 loop breaker can never fire. The bug was
+    intermittent - it only surfaced when iterations straddled a millisecond
+    boundary - so it is pinned here rather than left to timing.
+    """
+    alert = _alert()
+    alert.startsAt = "2026-07-20T10:00:00Z"
+    alert.endsAt = None
+    inv = inv_module.Investigation(id="i1", alert=alert)
+
+    first = dict(inv.time_args)
+    time.sleep(0.005)
+    second = dict(inv.time_args)
+    assert first == second
+
+    args_a = inv_module._trace_search_args("svc", inv.time_args)
+    time.sleep(0.005)
+    args_b = inv_module._trace_search_args("svc", inv.time_args)
+    assert signoz_mcp.compute_query_hash("signoz_search_traces", args_a) == \
+        signoz_mcp.compute_query_hash("signoz_search_traces", args_b)

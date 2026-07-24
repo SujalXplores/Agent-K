@@ -182,6 +182,22 @@ class Investigation:
     # investigation, which never reaches the act stage - see _run_act_stage.
     policy_decision: policy_module.PolicyDecision | None = None
     action_outcome: rollback_module.ActionOutcome | None = None
+    # SigNoz time-window arguments, frozen ONCE at construction (see __post_init__).
+    time_args: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Freeze the evidence time window for the whole investigation.
+
+        This MUST NOT be recomputed per query. An open-ended alert's window ends at
+        "now", so recomputing it per iteration puts a moving millisecond into the
+        query arguments - which changes the query hash every time and makes the
+        LAW3-04 loop breaker structurally unable to fire, since two identical
+        queries would never hash alike. Freezing it here also means every piece of
+        evidence in one investigation describes the same window, which is what
+        makes the claims comparable to each other.
+        """
+        if not self.time_args:
+            self.time_args = build_time_args(self.alert)
 
 
 # In-process investigation store (mirrors app.alerts_webhook's `_alerts` list
@@ -304,7 +320,7 @@ async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int)
     service = alert.labels.get("service", "unknown-service")
     time_range = f"{alert.startsAt}/{alert.endsAt or 'now'}"
     tool_name, ev_type, build_args = EVIDENCE_QUERY_PLAN[iteration]
-    arguments = build_args(service, build_time_args(alert))
+    arguments = build_args(service, inv.time_args)
 
     triggered_hash = _record_mcp_query_and_check_loop(inv, tool_name, arguments)
     if triggered_hash is not None:

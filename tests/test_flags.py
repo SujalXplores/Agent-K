@@ -142,3 +142,28 @@ def test_post_correct_token_ok(app_client, monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json()["flags"]["retrieval_latency"] is True
+
+
+# --- Boot-time flag seeding (HV-3's v2-broken image) ---
+
+
+def test_no_flags_seeded_by_default():
+    """The all-OFF default must survive: a service never boots degraded by accident."""
+    assert flags.seed_flags_from_env("") == []
+    assert not any(flags.get_all().values())
+
+
+def test_named_flags_are_seeded_on():
+    assert flags.seed_flags_from_env("prompt_regression") == ["prompt_regression"]
+    assert flags.get_all()["prompt_regression"] is True
+
+
+def test_multiple_flags_seeded_with_whitespace_tolerance():
+    seeded = flags.seed_flags_from_env(" prompt_regression , retry_storm ")
+    assert sorted(seeded) == ["prompt_regression", "retry_storm"]
+
+
+def test_unknown_seed_name_is_ignored_not_fatal():
+    """A typo in a compose file must degrade to 'boots healthy', never 'refuses to boot'."""
+    assert flags.seed_flags_from_env("prompt_regresion") == []
+    assert not any(flags.get_all().values())
