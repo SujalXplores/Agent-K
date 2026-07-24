@@ -105,7 +105,11 @@ def build_evidence_link(evidence_type: str, ref: str, time_range: str) -> str:
     scripts/check_evidence_links.py is the human-verification companion that
     confirms these actually resolve once a live SigNoz stack exists (LAW1-05).
     """
-    base = os.getenv("SIGNOZ_URL", "http://localhost:3301").rstrip("/")
+    # Default is 8080, the port SigNoz's Foundry deployment actually serves on.
+    # This was 3301 (SigNoz's older default) until 2026-07-25, which silently
+    # produced dead evidence links on every claim whenever SIGNOZ_URL was unset -
+    # exactly the failure LAW1-05's link checker exists to catch.
+    base = os.getenv("SIGNOZ_URL", "http://localhost:8080").rstrip("/")
 
     if evidence_type == "trace":
         return f"{base}/trace/{ref}"

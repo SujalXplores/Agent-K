@@ -153,7 +153,9 @@ async def test_loop_breaker_fires_on_adversarial_repeated_query(monkeypatch, in_
     # normal operation varies the query per iteration (see module docstring), so
     # this must be deliberately forced to prove the breaker actually fires.
     monkeypatch.setattr(
-        inv_module, "EVIDENCE_QUERY_PLAN", [(inv_module.SIGNOZ_TRACES_TOOL, "trace")] * 10
+        inv_module,
+        "EVIDENCE_QUERY_PLAN",
+        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._trace_search_args)] * 10,
     )
     monkeypatch.setattr(inv_module, "MAX_ITERATIONS", 10)
     monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
@@ -347,7 +349,9 @@ async def test_incomplete_investigation_never_reaches_the_act_stage(monkeypatch)
     from app import rollback as rollback_module
 
     monkeypatch.setattr(
-        inv_module, "EVIDENCE_QUERY_PLAN", [(inv_module.SIGNOZ_TRACES_TOOL, "trace")] * 10
+        inv_module,
+        "EVIDENCE_QUERY_PLAN",
+        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._trace_search_args)] * 10,
     )
     monkeypatch.setattr(inv_module, "MAX_ITERATIONS", 10)
     monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
@@ -414,3 +418,80 @@ async def test_act_stage_failure_does_not_destroy_the_investigation_record(monke
     assert inv.state == inv_module.InvestigationState.REPORTED
     assert inv.claims
     assert inv_module.get_investigation(inv.id) is inv
+
+
+# --- SigNoz MCP tool contract (corrected 2026-07-25 against server v0.9.0) ---
+
+
+def test_evidence_plan_uses_real_signoz_mcp_tool_names():
+    """Pins the tool names against signoz-mcp-server's advertised inventory.
+
+    These were originally query_traces/query_logs/query_metrics - names that do not
+    exist. A wrong name does not crash: it returns an error result, which reads
+    exactly like "no evidence found", so every investigation silently escalated and
+    nothing pointed at the cause. This test makes that failure loud.
+    """
+    names = [tool for tool, _, _ in inv_module.EVIDENCE_QUERY_PLAN]
+    assert names == ["signoz_search_traces", "signoz_search_logs", "signoz_aggregate_traces"]
+    assert all(name.startswith("signoz_") for name in names)
+
+
+def test_every_evidence_query_is_distinct():
+    """The loop breaker must only fire on a genuine repeat, never on the plan itself."""
+    time_args = {"timeRange": "1h"}
+    hashes = {
+        signoz_mcp.compute_query_hash(tool, build(("svc"), time_args))
+        for tool, _, build in inv_module.EVIDENCE_QUERY_PLAN
+    }
+    assert len(hashes) == len(inv_module.EVIDENCE_QUERY_PLAN)
+
+
+def test_trace_stats_query_avoids_metric_name_requirement():
+    """signoz_query_metrics requires a metricName this app never emits, so the
+    error-rate signal is derived from spans instead."""
+    args = inv_module._trace_stats_args("svc", {"timeRange": "1h"})
+    assert args["aggregation"] == "count"
+    assert args["groupBy"] == "has_error"
+    assert "metricName" not in args
+
+
+def test_time_args_prefer_the_alerts_own_window():
+    alert = _alert()
+    alert.startsAt = "2026-07-25T10:00:00Z"
+    alert.endsAt = "2026-07-25T10:30:00Z"
+    args = inv_module.build_time_args(alert)
+    assert args == {"start": 1784973600000, "end": 1784975400000}
+
+
+def test_time_args_fall_back_when_the_window_is_unusable():
+    """A missing, malformed, or inverted window becomes a relative range rather
+    than a nonsense absolute one."""
+    for starts, ends in [("", None), ("not-a-date", None), ("2026-07-25T10:30:00Z", "2026-07-25T10:00:00Z")]:
+        alert = _alert()
+        alert.startsAt = starts
+        alert.endsAt = ends
+        assert inv_module.build_time_args(alert) == {"timeRange": inv_module.DEFAULT_TIME_RANGE}
+
+
+def test_open_ended_alert_uses_now_as_the_end():
+    """A still-firing alert (endsAt=None) gets a window ending at 'now'.
+
+    The start must be genuinely in the past: a future startsAt would produce an
+    inverted window and correctly take the relative-range fallback instead.
+    """
+    alert = _alert()
+    alert.startsAt = "2026-07-20T10:00:00Z"
+    alert.endsAt = None
+    args = inv_module.build_time_args(alert)
+    assert args["start"] == 1784541600000
+    assert args["end"] > args["start"]
+
+
+def test_signoz_web_url_is_preferred_over_a_hand_built_link():
+    """SigNoz's own deep link cannot disagree with SigNoz's own routes."""
+    text = '{"trace_id": "abc", "webUrl": "http://localhost:8080/trace/abc?x=1"}'
+    assert inv_module.extract_web_url(text) == "http://localhost:8080/trace/abc?x=1"
+
+
+def test_missing_web_url_falls_back_to_the_built_link():
+    assert inv_module.extract_web_url('{"trace_id": "abc"}') is None

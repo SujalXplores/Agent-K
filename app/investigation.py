@@ -40,11 +40,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from opentelemetry import trace
 from opentelemetry.trace import Link, SpanContext, TraceFlags
@@ -81,17 +83,44 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # --- Tunables ---
-SIGNOZ_TRACES_TOOL = "query_traces"
-SIGNOZ_LOGS_TOOL = "query_logs"
-SIGNOZ_METRICS_TOOL = "query_metrics"
+# Tool names verified against signoz-mcp-server v0.9.0's advertised tool list on
+# 2026-07-25. They were previously guessed as query_traces/query_logs/query_metrics,
+# which do not exist - every evidence query would have failed, stripping every claim
+# and escalating every investigation.
+SIGNOZ_TRACES_TOOL = "signoz_search_traces"
+SIGNOZ_LOGS_TOOL = "signoz_search_logs"
+SIGNOZ_TRACE_STATS_TOOL = "signoz_aggregate_traces"
+
+EVIDENCE_ROW_LIMIT = 20  # enough context for a hypothesis, small enough to stay in the prompt
+DEFAULT_TIME_RANGE = "1h"  # relative fallback when the alert carries no usable window
+
+
+def _trace_search_args(service: str, time_args: dict) -> dict:
+    return {"service": service, "limit": EVIDENCE_ROW_LIMIT, **time_args}
+
+
+def _log_search_args(service: str, time_args: dict) -> dict:
+    return {"service": service, "limit": EVIDENCE_ROW_LIMIT, **time_args}
+
+
+def _trace_stats_args(service: str, time_args: dict) -> dict:
+    """Error/success span counts for the service.
+
+    Deliberately NOT signoz_query_metrics: that tool requires a `metricName`, and
+    this app emits no custom metrics - only auto-instrumented spans. Counting spans
+    grouped by has_error derives the error-rate signal from telemetry we actually
+    produce, instead of querying a metric that does not exist.
+    """
+    return {"aggregation": "count", "groupBy": "has_error", "service": service, **time_args}
+
 
 # Each iteration issues the next entry - guarantees no repeated query under normal
 # operation (see module docstring). MAX_ITERATIONS is pinned to this plan's length
 # so the loop never has to clamp/reuse an earlier entry.
-EVIDENCE_QUERY_PLAN: list[tuple[str, str]] = [
-    (SIGNOZ_TRACES_TOOL, "trace"),
-    (SIGNOZ_LOGS_TOOL, "log"),
-    (SIGNOZ_METRICS_TOOL, "metric"),
+EVIDENCE_QUERY_PLAN: list[tuple[str, str, Callable[[str, dict], dict]]] = [
+    (SIGNOZ_TRACES_TOOL, "trace", _trace_search_args),
+    (SIGNOZ_LOGS_TOOL, "log", _log_search_args),
+    (SIGNOZ_TRACE_STATS_TOOL, "metric", _trace_stats_args),
 ]
 MAX_ITERATIONS = len(EVIDENCE_QUERY_PLAN)
 
@@ -216,6 +245,54 @@ def _fire_cost_watchdog(inv: Investigation) -> None:
     logger.error("cost watchdog fired: total_tokens=%d budget=%d", inv.total_tokens, TOKEN_BUDGET)
 
 
+def _parse_iso_to_ms(value: str | None) -> int | None:
+    """ISO-8601 (with or without a trailing Z) -> unix milliseconds, or None."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return int(parsed.timestamp() * 1000)
+
+
+def build_time_args(alert: AlertItem) -> dict:
+    """The time-window arguments every SigNoz MCP evidence tool accepts.
+
+    The tools take EITHER `start`/`end` as unix milliseconds (which win when both
+    are given) OR a relative `timeRange` like '1h'. The alert's own window is
+    preferred so evidence is scoped to the incident rather than to "recently";
+    anything unusable about that window falls back to the relative default rather
+    than sending a nonsense range.
+    """
+    start_ms = _parse_iso_to_ms(alert.startsAt)
+    if start_ms is None:
+        return {"timeRange": DEFAULT_TIME_RANGE}
+
+    end_ms = _parse_iso_to_ms(alert.endsAt) or int(time.time() * 1000)
+    if end_ms <= start_ms:
+        return {"timeRange": DEFAULT_TIME_RANGE}
+    return {"start": start_ms, "end": end_ms}
+
+
+_WEB_URL_PATTERN = re.compile(r'"webUrl"\s*:\s*"([^"]+)"')
+
+
+def extract_web_url(text: str) -> str | None:
+    """Pull SigNoz's own deep link out of a tool result, when it provides one.
+
+    signoz-mcp-server returns a `webUrl` on its resource-read tools - an absolute,
+    server-generated link to the exact resource. Preferring it over a hand-built
+    URL is what makes LAW1-05's "100% resolve" achievable: SigNoz's own link cannot
+    disagree with SigNoz's own routes, whereas app/claims.py's path shapes are an
+    unverified guess.
+    """
+    match = _WEB_URL_PATTERN.search(text)
+    return match.group(1) if match else None
+
+
 async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int) -> list[Evidence]:
     """Issue one iteration's evidence-gathering MCP query (LAW3-02).
 
@@ -226,8 +303,8 @@ async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int)
     """
     service = alert.labels.get("service", "unknown-service")
     time_range = f"{alert.startsAt}/{alert.endsAt or 'now'}"
-    tool_name, ev_type = EVIDENCE_QUERY_PLAN[iteration]
-    arguments = {"service": service, "time_range": time_range}
+    tool_name, ev_type, build_args = EVIDENCE_QUERY_PLAN[iteration]
+    arguments = build_args(service, build_time_args(alert))
 
     triggered_hash = _record_mcp_query_and_check_loop(inv, tool_name, arguments)
     if triggered_hash is not None:
@@ -248,12 +325,14 @@ async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int)
 
     content_text = "\n".join(getattr(block, "text", "") for block in result.content)
     inv.last_evidence_text.append(content_text)
+    # Prefer SigNoz's own deep link over a hand-built one (see extract_web_url).
+    link = extract_web_url(content_text) or build_evidence_link(ev_type, service, time_range)
     return [
         Evidence(
             type=ev_type,
             query=f"{tool_name}({arguments})",
             time_range=time_range,
-            link=build_evidence_link(ev_type, service, time_range),
+            link=link,
         )
     ]
 

@@ -114,5 +114,10 @@ def test_build_evidence_link_unknown_type_raises(monkeypatch):
 
 
 def test_build_evidence_link_default_signoz_url(monkeypatch):
+    """The unset-SIGNOZ_URL default must be the port SigNoz actually serves on.
+
+    Pinned deliberately: this was 3301 and produced dead links on every claim
+    until 2026-07-25, which is precisely the failure LAW1-05 forbids.
+    """
     monkeypatch.delenv("SIGNOZ_URL", raising=False)
-    assert build_evidence_link("trace", "abc", "t1/t2") == "http://localhost:3301/trace/abc"
+    assert build_evidence_link("trace", "abc", "t1/t2") == "http://localhost:8080/trace/abc"

@@ -56,7 +56,7 @@ actually reads via `os.getenv`/`os.environ`:
 | `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `GEMINI_API_KEY` | `app/llm.py` | Only the one matching `LLM_PROVIDER` is required; client construction now fails fast (`MissingProviderKeyError`) instead of silently leaking an unrelated key |
 | `EMBEDDING_MODEL` | `app/embeddings.py` | Defaults to `all-MiniLM-L6-v2` if unset |
 | `ADMIN_TOKEN` | `app/flags.py` (`/admin/flags` POST) | If unset, the admin endpoint is unauthenticated (fine for local demo only) |
-| `SIGNOZ_URL` | `app/signoz_mcp.py`, `app/claims.py` | Passed to the MCP server subprocess **and** used as the base for every evidence deep link. Defaults to `http://localhost:3301`, which is **wrong for this deployment** — set it to `http://localhost:8080` or all report-page links 404 |
+| `SIGNOZ_URL` | `app/signoz_mcp.py`, `app/claims.py` | Passed to the MCP server subprocess **and** used as the base for every evidence deep link. Defaults to `http://localhost:8080`, matching this deployment |
 | `SIGNOZ_API_KEY` | `app/signoz_mcp.py` | Passed through to the SigNoz MCP server subprocess |
 | `DEPLOYER_URL`, `DEPLOYER_TOKEN` | `app/rollback.py` | Where the deployer sidecar lives and the shared token authenticating `POST /rollback`. `DEPLOYER_TOKEN` must match the sidecar's own (see §6a) |
 | `SIGNOZ_MCP_COMMAND` | `app/signoz_mcp.py` | Path/command to launch the SigNoz MCP server binary |
@@ -203,10 +203,10 @@ Three things the page deliberately does, worth knowing before you read it:
 - A loop-breaker/cost-watchdog investigation renders as **needs human** with no
   verdict — it never reached the act stage, so there is nothing to report.
 
-> **Evidence links are dead until `SIGNOZ_URL` is set correctly.** `app/claims.py`
-> defaults to `http://localhost:3301`, but this deployment's SigNoz serves on
-> **8080**. Set `SIGNOZ_URL=http://localhost:8080` in `.env` or every "Open in
-> SigNoz" link on the report page 404s.
+> **Evidence links point at `SIGNOZ_URL`**, which now defaults to
+> `http://localhost:8080` — correct for this deployment. Override it only if your
+> SigNoz is elsewhere; a wrong value makes every "Open in SigNoz" link on the
+> report page 404.
 
 To see the pages without standing up the whole live chain (no DB, no API key, no
 server needed):

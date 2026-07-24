@@ -45,10 +45,27 @@ logger = logging.getLogger(__name__)
 DEFAULT_DEPLOYER_URL = "http://deployer:9000"
 ROLLBACK_HTTP_TIMEOUT_S = 200.0  # must exceed the sidecar's own 180s compose timeout
 VERIFICATION_WAIT_S = 30.0  # let the recreated service emit post-rollback telemetry
-RECOVERED_ERROR_RATE_MAX = 0.05  # error rate at/below this counts as recovered
+RECOVERED_ERROR_RATE_MAX = 0.05  # error ratio at/below this counts as recovered
 
-# Pulls the first number out of an "error_rate: 0.02"-style evidence payload.
+# Verified against signoz-mcp-server v0.9.0's tool list on 2026-07-25. This was
+# "query_metrics", which does not exist; the real signoz_query_metrics also requires
+# a `metricName` this app never emits (no custom metrics, only auto-instrumented
+# spans), so recovery is measured by counting spans grouped by has_error instead.
+RECOVERY_TOOL = "signoz_aggregate_traces"
+
+# Deliberately a SHORT RELATIVE window, not the incident's window: the question
+# after a rollback is "is the service healthy NOW", and re-querying the original
+# incident range would re-read the very error spans the rollback was meant to stop
+# and conclude nothing had changed.
+RECOVERY_TIME_RANGE = "5m"
+
+# Back-compat: an "error_rate: 0.02"-style payload.
 _ERROR_RATE_PATTERN = re.compile(r"error[_\s]?rate\D{0,10}([0-9]*\.?[0-9]+)", re.IGNORECASE)
+
+# has_error-grouped span counts, e.g. `"has_error": "true" ... "count": 3`.
+_HAS_ERROR_GROUP_PATTERN = re.compile(
+    r'has_error"?\s*[:=]\s*"?(true|false)"?[^}]*?(\d+(?:\.\d+)?)', re.IGNORECASE
+)
 
 
 @dataclass
@@ -81,13 +98,32 @@ async def _call_deployer() -> httpx.Response:
 
 
 def _parse_error_rate(text: str) -> float | None:
+    """Read an error RATIO in [0,1] out of a recovery-query payload, or None.
+
+    Two accepted shapes, in order: an explicit "error_rate: 0.02", or has_error-
+    grouped span counts which are divided into a ratio here. Returns None - never
+    a guess - when neither is present, because verify_recovery treats None as
+    UNVERIFIED, and inventing a number would be the one thing Law 2's verification
+    step exists to prevent.
+    """
     match = _ERROR_RATE_PATTERN.search(text)
-    if match is None:
+    if match is not None:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+
+    counts: dict[str, float] = {}
+    for flag, value in _HAS_ERROR_GROUP_PATTERN.findall(text):
+        try:
+            counts[flag.lower()] = counts.get(flag.lower(), 0.0) + float(value)
+        except ValueError:
+            continue
+
+    total = counts.get("true", 0.0) + counts.get("false", 0.0)
+    if total <= 0:
         return None
-    try:
-        return float(match.group(1))
-    except ValueError:
-        return None
+    return counts.get("true", 0.0) / total
 
 
 async def verify_recovery(service: str, time_range: str) -> tuple[bool, str]:
@@ -100,7 +136,13 @@ async def verify_recovery(service: str, time_range: str) -> tuple[bool, str]:
     """
     try:
         result = await signoz_mcp.query_signoz(
-            "query_metrics", {"service": service, "time_range": time_range}
+            RECOVERY_TOOL,
+            {
+                "aggregation": "count",
+                "groupBy": "has_error",
+                "service": service,
+                "timeRange": RECOVERY_TIME_RANGE,
+            },
         )
     except Exception:
         logger.exception("recovery verification query failed")
