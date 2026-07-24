@@ -63,6 +63,26 @@ DEPLOYMENT_MARKER_VERSION = "deployment.version"  # FLAG-06 (app/flags.py)
 AGENTK_MCP_TOOL_NAME = "agentk.mcp.tool_name"
 AGENTK_MCP_QUERY_HASH = "agentk.mcp.query_hash"
 
+# --- Investigation self-telemetry attribute-name constants (Phase 5, Law 3) ---
+# Stamped by app/investigation.py's run_investigation() on the "agentk.investigation"
+# span (LAW3-02/03) and by its child "agentk.hypothesis"/"agentk.watchdog.*" spans.
+AGENTK_INVESTIGATION_ID = "agentk.investigation.id"
+AGENTK_INVESTIGATION_STATE = "agentk.investigation.state"
+AGENTK_INVESTIGATION_INCOMPLETE = "agentk.investigation.incomplete"
+AGENTK_INVESTIGATION_DURATION_S = "agentk.investigation.duration_s"
+AGENTK_INVESTIGATION_MCP_QUERY_COUNT = "agentk.investigation.mcp_query_count"
+AGENTK_INVESTIGATION_MCP_QUERY_FAILURES = "agentk.investigation.mcp_query_failures"
+AGENTK_INVESTIGATION_REPEATED_QUERY_COUNT = "agentk.investigation.repeated_query_count"
+AGENTK_INVESTIGATION_HYPOTHESIS_COUNT = "agentk.investigation.hypothesis_count"
+AGENTK_INVESTIGATION_TOTAL_TOKENS = "agentk.investigation.total_tokens"
+AGENTK_HYPOTHESIS_CONFIDENCE = "agentk.hypothesis.confidence"
+AGENTK_HYPOTHESIS_LLM_CONFIDENCE = "agentk.hypothesis.llm_confidence"
+AGENTK_WATCHDOG_KIND = "agentk.watchdog.kind"  # "loop_breaker" | "cost_budget"
+AGENTK_WATCHDOG_QUERY_HASH = "agentk.watchdog.query_hash"
+AGENTK_WATCHDOG_REPEAT_COUNT = "agentk.watchdog.repeat_count"
+AGENTK_WATCHDOG_TOTAL_TOKENS = "agentk.watchdog.total_tokens"
+AGENTK_WATCHDOG_BUDGET = "agentk.watchdog.budget"
+
 # Best-effort, zero-budget-friendly per-1K-token rate used only to produce a
 # non-zero estimated_cost_usd attribute for Law 3 reuse (Phase 5). Free-tier
 # providers (Groq/Cerebras/Gemini Flash) have effectively $0 real cost during

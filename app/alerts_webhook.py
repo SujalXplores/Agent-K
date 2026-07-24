@@ -25,6 +25,8 @@ import logging
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app import investigation
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -88,9 +90,17 @@ def clear_alerts() -> None:
 
 @router.post("/alerts/webhook")
 async def receive_alert(payload: AlertmanagerWebhookPayload) -> dict:
-    """Validate -> log (name+status only) -> persist each alert; return count received."""
+    """Validate -> log (name+status only) -> persist -> start an investigation for
+    each alert (INV-01); return count received.
+
+    Investigation is started via investigation.start_investigation(), a
+    fire-and-forget background asyncio task - the HTTP response returns
+    immediately with the received count and is never blocked on a multi-second
+    investigation.
+    """
     for alert in payload.alerts:
         alertname = alert.labels.get("alertname") or payload.groupLabels.get("alertname")
         logger.info("alert received: name=%s status=%s", alertname, alert.status)
         _persist_alert(payload.receiver, alert)
+        investigation.start_investigation(alert)
     return {"received": len(payload.alerts)}
