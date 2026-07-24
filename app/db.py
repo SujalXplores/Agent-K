@@ -21,10 +21,13 @@ rag.retrieval span. It must be called once at application startup (wired
 in app/main.py).
 """
 
+import asyncio
+import logging
 import os
 from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
+from opentelemetry import trace
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -33,7 +36,23 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app import flags
+from app.observability import AGENTK_DB_POOL_EXHAUSTED
+
+logger = logging.getLogger(__name__)
+
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://agentk:agentk@localhost:5432/agentk"
+
+# FLAG-05 DB-pool-exhaustion injector. The real SQLAlchemy pool size is fixed at
+# engine construction and cannot be resized live without a restart, which would
+# violate FLAG-01's no-restart guarantee (03-RESEARCH.md Pitfall 4). Instead, when
+# db_pool_exhaustion is ON, an application-level semaphore(1) gates checkout: a
+# single in-flight session holds it, and a concurrent second checkout times out
+# and raises a pool-exhaustion-shaped error - reproducing the symptom (connection-
+# pool-exhaustion errors in logs correlated to failed traces) without ever touching
+# the real engine/pool.
+_pool_exhaustion_semaphore = asyncio.Semaphore(1)
+POOL_ACQUIRE_TIMEOUT_S = 0.1
 
 load_dotenv()
 _database_url = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
@@ -52,9 +71,35 @@ def get_engine() -> AsyncEngine:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI async dependency yielding an AsyncSession bound to the engine."""
-    async with AsyncSessionLocal() as session:
-        yield session
+    """FastAPI async dependency yielding an AsyncSession bound to the engine.
+
+    FLAG-05: when db_pool_exhaustion is ON, checkout is gated by an application-
+    level semaphore(1) (read fresh, no-restart). A concurrent second checkout that
+    cannot acquire within POOL_ACQUIRE_TIMEOUT_S raises a pool-exhaustion-shaped
+    TimeoutError, logs it, and flags AGENTK_DB_POOL_EXHAUSTED on the active span.
+    When OFF, the original checkout path is untouched. The real engine/pool is
+    never reconstructed or resized, and no pgvector connection-level codec is added
+    (see the module header rule).
+    """
+    if not flags.is_enabled("db_pool_exhaustion"):
+        async with AsyncSessionLocal() as session:
+            yield session
+        return
+
+    try:
+        await asyncio.wait_for(
+            _pool_exhaustion_semaphore.acquire(), timeout=POOL_ACQUIRE_TIMEOUT_S
+        )
+    except asyncio.TimeoutError as exc:
+        logger.error("simulated DB pool exhaustion: checkout timed out")
+        trace.get_current_span().set_attribute(AGENTK_DB_POOL_EXHAUSTED, True)
+        raise TimeoutError("simulated DB pool exhaustion") from exc
+
+    try:
+        async with AsyncSessionLocal() as session:
+            yield session
+    finally:
+        _pool_exhaustion_semaphore.release()
 
 
 def setup_db_instrumentation() -> None:
