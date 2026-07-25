@@ -37,6 +37,7 @@ services:
       CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SIGNOZ_URL: ${SIGNOZ_URL:-http://host.docker.internal:8080}
       SIGNOZ_API_KEY: ${SIGNOZ_API_KEY:-}
       DEPLOYER_URL: http://deployer:9000
