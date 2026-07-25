@@ -304,7 +304,14 @@ async def test_deployment_class_incident_reaches_an_approved_rollback(monkeypatc
     from app import rollback as rollback_module
 
     policy_module.clear_cooldowns()
-    monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success("deployment marker present"))
+    # Shaped like a real signoz_aggregate_traces marker result: the policy gate now
+    # requires a marker to be OBSERVED in evidence, so "deployment marker present"
+    # as free text is (correctly) no longer enough to corroborate the claim.
+    monkeypatch.setattr(
+        signoz_mcp,
+        "query_signoz",
+        _mock_query_success('{"data":[["prompt_regression",3]]} deployment marker present'),
+    )
     monkeypatch.setattr(llm_module, "generate", _mock_generate("prompt_regression is the cause", 0.9))
 
     executed = []
@@ -440,8 +447,8 @@ def test_evidence_plan_uses_real_signoz_mcp_tool_names():
     names = [tool for tool, _, _ in inv_module.EVIDENCE_QUERY_PLAN]
     assert names == [
         "signoz_aggregate_traces",  # p95 latency per operation - symptom, all scenarios
+        "signoz_aggregate_traces",  # deployment.marker by scenario - the cause signal
         "signoz_search_traces",     # error spans - symptom, error scenarios only
-        "signoz_aggregate_traces",  # deployment.marker grouped by scenario - the cause
         "signoz_search_logs",
         "signoz_aggregate_traces",
     ]
@@ -533,3 +540,22 @@ def test_time_window_is_frozen_for_the_whole_investigation():
     args_b = inv_module._error_spans_args("svc", inv.time_args)
     assert signoz_mcp.compute_query_hash("signoz_search_traces", args_a) == \
         signoz_mcp.compute_query_hash("signoz_search_traces", args_b)
+
+
+def test_deployment_marker_query_runs_before_the_confidence_stop_can_fire():
+    """Ordering invariant, not a preference.
+
+    The Law 2 gate requires an observed deployment.marker to corroborate a
+    deployment-class claim. If the marker query sat past MIN_EVIDENCE_ITERATIONS,
+    a confident early stop would end the investigation before that evidence was
+    ever gathered — and no rollback could EVER be approved. This was live for one
+    test run before being caught.
+    """
+    idx = next(i for i, (_, t, _) in enumerate(inv_module.EVIDENCE_QUERY_PLAN) if t == "deployment")
+    assert idx < inv_module.MIN_EVIDENCE_ITERATIONS
+
+
+def test_markers_are_recorded_from_evidence_never_from_claim_text():
+    """deployment_markers_seen must only be populated by a tool result."""
+    inv = inv_module.Investigation(id="i1", alert=_alert())
+    assert inv.deployment_markers_seen == set()

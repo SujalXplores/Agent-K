@@ -56,6 +56,7 @@ from app import policy as policy_module
 from app import rollback as rollback_module
 from app import signoz_mcp
 from app.claims import Claim, Evidence, build_evidence_link, recalibrate_confidence, strip_unevidenced_claims
+from app.flags import FLAG_NAMES
 from app.observability import (
     AGENTK_HYPOTHESIS_CONFIDENCE,
     AGENTK_HYPOTHESIS_LLM_CONFIDENCE,
@@ -232,12 +233,13 @@ def _trace_stats_args(service: str, time_args: dict) -> dict:
 # so the loop never has to clamp/reuse an earlier entry.
 EVIDENCE_QUERY_PLAN: list[tuple[str, str, Callable[[str, dict], dict]]] = [
     (SIGNOZ_TRACE_STATS_TOOL, "metric", _latency_by_operation_args),
-    (SIGNOZ_TRACES_TOOL, "trace", _error_spans_args),
     (SIGNOZ_TRACE_STATS_TOOL, "deployment", _deployment_marker_args),
+    (SIGNOZ_TRACES_TOOL, "trace", _error_spans_args),
     (SIGNOZ_LOGS_TOOL, "log", _log_search_args),
     (SIGNOZ_TRACE_STATS_TOOL, "metric", _trace_stats_args),
 ]
 MAX_ITERATIONS = len(EVIDENCE_QUERY_PLAN)
+
 
 LOOP_BREAKER_REPEAT_THRESHOLD = 3  # same query hash seen more than this many times -> stop
 TOKEN_BUDGET = 20_000  # total input+output tokens per investigation (see cost-watchdog note above)
@@ -250,6 +252,19 @@ CONFIDENCE_STOP_THRESHOLD = 0.75  # stop iterating once a hypothesis is this con
 # the deployment marker that decides the deployment_related policy check. A
 # confident answer drawn from one query is not a completed investigation.
 MIN_EVIDENCE_ITERATIONS = 2
+
+# The deployment-marker query MUST run before the confidence stop is allowed to
+# fire. The Law 2 gate now requires an observed marker to corroborate a
+# deployment-class claim, so an investigation that stopped before this query could
+# never approve anything - the marker evidence simply would not exist yet. Ordering
+# is load-bearing, so it is asserted at import rather than left to a comment.
+_DEPLOYMENT_QUERY_INDEX = next(
+    i for i, (_, ev_type, _) in enumerate(EVIDENCE_QUERY_PLAN) if ev_type == "deployment"
+)
+assert _DEPLOYMENT_QUERY_INDEX < MIN_EVIDENCE_ITERATIONS, (
+    "the deployment-marker query must fall within MIN_EVIDENCE_ITERATIONS, or the "
+    "policy gate can never corroborate a deployment-class claim"
+)
 
 # Known incident vocabulary - matches app.flags.FLAG_NAMES exactly (Phase 3's four
 # seeded scenarios), given to the LLM so it can name a scenario rather than
@@ -315,6 +330,10 @@ class Investigation:
     action_outcome: rollback_module.ActionOutcome | None = None
     # SigNoz time-window arguments, frozen ONCE at construction (see __post_init__).
     time_args: dict = field(default_factory=dict)
+    # Scenario names for which a real deployment.marker was OBSERVED in evidence.
+    # The Law 2 gate requires this to corroborate a deployment-class claim, so it
+    # must only ever be populated from a tool result - never from a claim.
+    deployment_markers_seen: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         """Freeze the evidence time window for the whole investigation.
@@ -472,6 +491,14 @@ async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int)
 
     content_text = "\n".join(getattr(block, "text", "") for block in result.content)
     inv.last_evidence_text.append(compact_evidence(content_text))
+
+    # Record which deployment markers genuinely exist, straight from the tool
+    # result. This is what the policy gate corroborates a deployment-class claim
+    # against, so it is deliberately read from EVIDENCE and never from claim text.
+    if ev_type == "deployment":
+        inv.deployment_markers_seen.update(
+            name for name in FLAG_NAMES if f'"{name}"' in content_text
+        )
     # Prefer SigNoz's own deep link over a hand-built one (see extract_web_url).
     link = extract_web_url(content_text) or build_evidence_link(ev_type, service, time_range)
     return [
@@ -592,6 +619,7 @@ async def _run_act_stage(inv: Investigation, alert: AlertItem) -> None:
         incident_id=inv.id,
         alert=alert,
         claims=inv.claims,
+        deployment_markers=inv.deployment_markers_seen,
     )
     inv.policy_decision = decision
 

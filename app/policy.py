@@ -246,6 +246,7 @@ def evaluate_policy(
     incident_id: str,
     alert: AlertItem,
     claims: list[Claim],
+    deployment_markers: frozenset[str] | set[str] | None = None,
     now: float | None = None,
 ) -> PolicyDecision:
     """Run all six checks and return the allow/deny decision (LAW2-01/02/05).
@@ -306,17 +307,38 @@ def evaluate_policy(
         )
     )
 
-    # 5. Deployment-related cause (produces LAW2-07's 2/2 split)
-    deployment_ok = incident_type in DEPLOYMENT_CLASS_FLAGS
-    checks.append(
-        PolicyCheck(
-            "deployment_related",
-            deployment_ok,
-            f"incident type {incident_type!r} "
-            f"{'is' if deployment_ok else 'is NOT'} deployment-class "
-            f"{sorted(DEPLOYMENT_CLASS_FLAGS)}",
+    # 5. Deployment-related cause (produces LAW2-07's 2/2 split).
+    #
+    # TWO conditions, deliberately. The scenario name must be deployment-class AND
+    # a real deployment.marker for that scenario must have been OBSERVED in the
+    # evidence. Naming alone is not enough, because incident_type is parsed out of
+    # the model's own claim text - so a check that stopped at the first condition
+    # would let the model authorise a rollback purely by writing the word
+    # "retry_storm" in a sentence.
+    #
+    # That is not hypothetical. The first 12-run evaluation caught it twice: two
+    # db_pool_exhaustion incidents were narrated as retry_storm and APPROVED a
+    # rollback, which LAW2-07 forbids. Requiring corroborating marker evidence
+    # moves this check from trust-the-model back to prove-it-in-telemetry, which
+    # is the entire premise of Law 2.
+    observed = frozenset(deployment_markers or ())
+    is_deployment_class = incident_type in DEPLOYMENT_CLASS_FLAGS
+    marker_seen = incident_type in observed
+    deployment_ok = is_deployment_class and marker_seen
+    if not is_deployment_class:
+        detail = (
+            f"incident type {incident_type!r} is NOT deployment-class "
+            f"{sorted(DEPLOYMENT_CLASS_FLAGS)}"
         )
-    )
+    elif not marker_seen:
+        detail = (
+            f"incident type {incident_type!r} is deployment-class, but NO "
+            f"deployment.marker for it was found in the evidence "
+            f"(markers observed: {sorted(observed) or 'none'}) - the claim is uncorroborated"
+        )
+    else:
+        detail = f"incident type {incident_type!r} is deployment-class AND a marker was observed"
+    checks.append(PolicyCheck("deployment_related", deployment_ok, detail))
 
     # 6. Sandbox scope
     sandbox_ok = target_service in SANDBOX_SERVICES

@@ -61,11 +61,19 @@ def _alert(
 
 
 def _evaluate(**overrides):
+    """Evaluate with corroborating marker evidence present by default.
+
+    The default supplies markers for BOTH deployment-class scenarios, so tests
+    that are not specifically about corroboration exercise the other five checks
+    without tripping this one. Tests about the corroboration rule itself override
+    `deployment_markers` explicitly.
+    """
     kwargs = {
         "action": policy_module.ROLLBACK_ACTION,
         "incident_id": "inv-1",
         "alert": _alert(),
         "claims": [_claim()],
+        "deployment_markers": frozenset({"prompt_regression", "retry_storm"}),
     }
     kwargs.update(overrides)
     return policy_module.evaluate_policy(**kwargs)
@@ -296,3 +304,43 @@ def test_denied_decision_is_recorded_as_thoroughly_as_an_approval(in_memory_expo
     assert "sandbox_scope" in failed
     for key in (AGENTK_POLICY_ACTION, AGENTK_POLICY_INCIDENT_ID, AGENTK_POLICY_CONFIDENCE):
         assert key in attrs
+
+
+# --- Corroboration: the deployment_related check may not trust claim text alone ---
+
+
+def test_deployment_class_claim_without_a_marker_is_denied():
+    """The exact false-approve the first 12-run evaluation produced, twice.
+
+    A db_pool_exhaustion incident was narrated by the model as "retry_storm".
+    Because incident_type is parsed from CLAIM TEXT, the deployment_related check
+    passed on the strength of a word in a sentence and a rollback was approved on
+    an incident LAW2-07 requires to deny. Corroborating evidence is now required.
+    """
+    claim = _claim(text="retry_storm: the service is retrying heavily")
+    decision = _evaluate(claims=[claim], deployment_markers=frozenset())
+
+    assert decision.approved is False
+    assert "deployment_related" in decision.failed_checks
+    assert "uncorroborated" in decision.reason
+
+
+def test_deployment_class_claim_with_a_marker_is_approved():
+    claim = _claim(text="retry_storm: the service is retrying heavily")
+    decision = _evaluate(claims=[claim], deployment_markers=frozenset({"retry_storm"}))
+    assert decision.approved is True
+
+
+def test_a_marker_for_a_different_scenario_does_not_corroborate():
+    """A prompt_regression marker must not license a retry_storm rollback."""
+    claim = _claim(text="retry_storm: the service is retrying heavily")
+    decision = _evaluate(claims=[claim], deployment_markers=frozenset({"prompt_regression"}))
+    assert decision.approved is False
+    assert "deployment_related" in decision.failed_checks
+
+
+def test_missing_marker_evidence_fails_closed():
+    """Omitting the argument entirely must deny, never default to permissive."""
+    claim = _claim(text="prompt_regression: a bad prompt shipped")
+    decision = _evaluate(claims=[claim], deployment_markers=None)
+    assert decision.approved is False
