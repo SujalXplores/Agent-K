@@ -320,6 +320,44 @@ async def report_index(request: Request):
     )
 
 
+@router.get("/api/investigations")
+async def investigations_json() -> list[dict]:
+    """Machine-readable investigation records, for the evaluation harness (EVAL-01).
+
+    Exists because the harness runs in a separate process from the app and EVAL-01
+    requires per-run diagnosis correctness, cost, time-to-diagnosis and rollback
+    result - none of which are recoverable by scraping the HTML report.
+
+    Read-only and derived from the same ReportView the pages render, so the numbers
+    an eval reports and the numbers a human sees can never disagree. Claims here are
+    already stripped of unevidenced entries, exactly as on the page.
+    """
+    return [
+        {
+            "id": v.id,
+            "state": v.state,
+            "status": v.status,
+            "incomplete": v.needs_human,
+            "alertname": v.alertname,
+            "service": v.service,
+            "started_at": v.started_at,
+            "incident_type": v.decision.incident_type if v.decision else None,
+            "verdict": v.decision.verdict if v.decision else None,
+            "failed_checks": v.decision.failed_checks if v.decision else [],
+            "confidence": v.decision.confidence if v.decision else None,
+            "action_status": v.outcome.status if v.outcome else None,
+            "action_verified": v.outcome.verified if v.outcome else None,
+            "claims": [{"claim": c.claim, "confidence": c.confidence} for c in v.claims],
+            "mcp_query_count": v.mcp_query_count,
+            "mcp_query_failures": v.mcp_query_failures,
+            "total_tokens": v.total_tokens,
+            "duration_s": v.duration_s,
+            "watchdog_events": v.watchdog_events,
+        }
+        for v in build_index_views()
+    ]
+
+
 @router.get("/report/{investigation_id}", response_class=HTMLResponse)
 async def report_detail(investigation_id: str, request: Request):
     """One investigation's full RCA, addressable by incident ID (REPT-01/02)."""

@@ -161,7 +161,7 @@ async def test_loop_breaker_fires_on_adversarial_repeated_query(monkeypatch, in_
     monkeypatch.setattr(
         inv_module,
         "EVIDENCE_QUERY_PLAN",
-        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._trace_search_args)] * 10,
+        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._error_spans_args)] * 10,
     )
     monkeypatch.setattr(inv_module, "MAX_ITERATIONS", 10)
     monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
@@ -357,7 +357,7 @@ async def test_incomplete_investigation_never_reaches_the_act_stage(monkeypatch)
     monkeypatch.setattr(
         inv_module,
         "EVIDENCE_QUERY_PLAN",
-        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._trace_search_args)] * 10,
+        [(inv_module.SIGNOZ_TRACES_TOOL, "trace", inv_module._error_spans_args)] * 10,
     )
     monkeypatch.setattr(inv_module, "MAX_ITERATIONS", 10)
     monkeypatch.setattr(signoz_mcp, "query_signoz", _mock_query_success())
@@ -439,7 +439,8 @@ def test_evidence_plan_uses_real_signoz_mcp_tool_names():
     """
     names = [tool for tool, _, _ in inv_module.EVIDENCE_QUERY_PLAN]
     assert names == [
-        "signoz_search_traces",     # error spans - the symptom
+        "signoz_aggregate_traces",  # p95 latency per operation - symptom, all scenarios
+        "signoz_search_traces",     # error spans - symptom, error scenarios only
         "signoz_aggregate_traces",  # deployment.marker grouped by scenario - the cause
         "signoz_search_logs",
         "signoz_aggregate_traces",
@@ -527,8 +528,8 @@ def test_time_window_is_frozen_for_the_whole_investigation():
     second = dict(inv.time_args)
     assert first == second
 
-    args_a = inv_module._trace_search_args("svc", inv.time_args)
+    args_a = inv_module._error_spans_args("svc", inv.time_args)
     time.sleep(0.005)
-    args_b = inv_module._trace_search_args("svc", inv.time_args)
+    args_b = inv_module._error_spans_args("svc", inv.time_args)
     assert signoz_mcp.compute_query_hash("signoz_search_traces", args_a) == \
         signoz_mcp.compute_query_hash("signoz_search_traces", args_b)

@@ -106,6 +106,19 @@ MAX_EVIDENCE_CHARS = 4000  # per iteration, after null-stripping
 DEFAULT_TIME_RANGE = "1h"  # relative fallback when the alert carries no usable window
 
 
+# Keys carrying SigNoz's own query-engine statistics and result-set plumbing, not
+# telemetry about the incident. They are stripped because a live eval run caught the
+# model diagnosing FROM them - it claimed "db_pool_exhaustion is likely due to an
+# extremely high number of rows scanned (1018) and bytes scanned (10434)", which are
+# the query planner's stats for Agent K's own query. Evidence must describe the
+# incident, never the act of looking at it.
+_ENGINE_NOISE_KEYS = frozenset({
+    "meta", "rowsScanned", "bytesScanned", "durationMs", "stepIntervals",
+    "nextCursor", "queryName", "columnType", "aggregationIndex", "signal",
+    "fieldContext", "fieldDataType", "id", "warnings",
+})
+
+
 def _strip_nulls(node):
     """Drop null-valued keys from a decoded MCP payload.
 
@@ -116,7 +129,11 @@ def _strip_nulls(node):
     could have reasoned from - which blind truncation cannot promise.
     """
     if isinstance(node, dict):
-        return {k: _strip_nulls(v) for k, v in node.items() if v is not None}
+        return {
+            k: _strip_nulls(v)
+            for k, v in node.items()
+            if v is not None and k not in _ENGINE_NOISE_KEYS
+        }
     if isinstance(node, list):
         return [_strip_nulls(item) for item in node]
     return node
@@ -145,9 +162,27 @@ def compact_evidence(text: str) -> str:
     return f"{compacted[:MAX_EVIDENCE_CHARS]}\n...[truncated {dropped} chars of evidence]"
 
 
-def _trace_search_args(service: str, time_args: dict) -> dict:
-    """Error spans - the symptom. `error=true` focuses the sample on failures
-    rather than spending the row budget on healthy traffic."""
+def _latency_by_operation_args(service: str, time_args: dict) -> dict:
+    """p95 latency per operation - the symptom, for EVERY scenario.
+
+    Replaces an error-spans-only query that could not see half the incidents:
+    retrieval_latency and db_pool_exhaustion degrade LATENCY without necessarily
+    raising the error rate, so an `error=true` filter returned nothing for them and
+    the model was left diagnosing from an empty result set. Grouping p95 by span
+    name localises the fault instead - a slow `rag.retrieval` and a slow `chat` are
+    different incidents, and that distinction is the whole diagnosis.
+    """
+    return {
+        "aggregation": "p95",
+        "aggregateOn": "duration_nano",
+        "groupBy": "name",
+        "service": service,
+        **time_args,
+    }
+
+
+def _error_spans_args(service: str, time_args: dict) -> dict:
+    """Error spans, when there are any. Silent for the latency scenarios by design."""
     return {"service": service, "error": "true", "limit": EVIDENCE_ROW_LIMIT, **time_args}
 
 
@@ -196,7 +231,8 @@ def _trace_stats_args(service: str, time_args: dict) -> dict:
 # operation (see module docstring). MAX_ITERATIONS is pinned to this plan's length
 # so the loop never has to clamp/reuse an earlier entry.
 EVIDENCE_QUERY_PLAN: list[tuple[str, str, Callable[[str, dict], dict]]] = [
-    (SIGNOZ_TRACES_TOOL, "trace", _trace_search_args),
+    (SIGNOZ_TRACE_STATS_TOOL, "metric", _latency_by_operation_args),
+    (SIGNOZ_TRACES_TOOL, "trace", _error_spans_args),
     (SIGNOZ_TRACE_STATS_TOOL, "deployment", _deployment_marker_args),
     (SIGNOZ_LOGS_TOOL, "log", _log_search_args),
     (SIGNOZ_TRACE_STATS_TOOL, "metric", _trace_stats_args),
