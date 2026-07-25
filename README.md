@@ -106,8 +106,16 @@ flowchart TD
 | `casting.yaml` | SigNoz Foundry deployment manifest |
 | `casting.yaml.lock` | Reproducible Foundry lockfile (judged deliverable) |
 | `docker-compose.yaml` | rag postgres (pgvector/pgvector:pg16) container |
-| `SIGNOZ-RUNBOOK.md` | Step by step SigNoz standup and first run setup |
-| `TELEMETRY-REBUILD-LOG.md` | Append only Foundry rebuild duration log |
+| `docs/` | All project docs (runbooks, setup, demo, submission) |
+| `docs/SIGNOZ-RUNBOOK.md` | Step by step SigNoz standup and first run setup |
+| `docs/RUNNING-AGENT-K.md` | Team guide: how to run every component |
+| `docs/DEMO.md` | Demo walkthrough and what's real vs fixture |
+| `docs/MCP-SETUP.md` | SigNoz MCP server build + verification |
+| `docs/HOSTED-DEMO.md` | Hosted demo topology (Vercel + SigNoz Cloud) |
+| `docs/SUBMISSION.md` | Hackathon submission + AI usage disclosure |
+| `docs/CONTRIBUTING.md` | Setup, testing, and contribution guide |
+| `docs/TELEMETRY-REBUILD-LOG.md` | Append only Foundry rebuild duration log |
+| `bin/` | Prebuilt SigNoz MCP server binaries (Linux + Windows) |
 | `landing/` | Static Next.js marketing site (separate, deploys to Vercel) |
 
 ## The monitored application
@@ -153,7 +161,7 @@ foundryctl cast -f casting.yaml                     # full pipeline: gauge + for
 ```
 
 Confirm the stack is up, then complete the required first run setup. See
-[`SIGNOZ-RUNBOOK.md`](SIGNOZ-RUNBOOK.md) for the exact steps, including the
+[`docs/SIGNOZ-RUNBOOK.md`](docs/SIGNOZ-RUNBOOK.md) for the exact steps, including the
 first run org and register step that binds the OTLP receivers.
 
 ### 2. Start the RAG service datastore
@@ -243,5 +251,5 @@ MIT. See [`LICENSE`](LICENSE) for the full text.
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to set up, run tests, and
+See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for how to set up, run tests, and
 submit changes.

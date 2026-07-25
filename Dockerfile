@@ -34,7 +34,7 @@ COPY scripts/ ./scripts/
 COPY data/ ./data/
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
-COPY signoz-mcp-server-linux ./signoz-mcp-server
+COPY bin/signoz-mcp-server-linux ./signoz-mcp-server
 
 EXPOSE 8000
 

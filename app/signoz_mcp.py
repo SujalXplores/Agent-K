@@ -18,9 +18,9 @@ The actual connect+initialize+call_tool sequence lives in _call_tool_via_mcp() a
 separate module-level function that query_signoz() is the only caller of. Kept
 separate purely so tests can monkeypatch it (mirroring app/llm.py's `OpenAI`
 monkeypatch pattern) - no real SigNoz MCP server or live SigNoz stack is required to
-test the wrapper's span/hash contract. scripts/probe_signoz_mcp.py is the throwaway
-end-to-end script (MCP-01) that DOES require a real server + live stack; running it
-is a human-verification step, not covered by the offline test suite.
+to test the wrapper's span/hash contract. End-to-end verification against a real
+server is a human-verification step (see docs/MCP-SETUP.md), not covered by the
+offline test suite.
 """
 
 from __future__ import annotations

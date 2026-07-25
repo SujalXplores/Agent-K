@@ -15,7 +15,7 @@ Claude Code — and we are disclosing that up front, per hackathon rules.**
 What the assistant was used for:
 
 - **Planning and architecture.** The roadmap, phase breakdown, and requirement
-  traceability in `.planning/` were drafted with Claude Code and reviewed by the team.
+  traceability were drafted with Claude Code and reviewed by the team.
 - **Implementation.** The RAG service, OpenTelemetry instrumentation, SigNoz MCP
   wrapper, Agent K investigation loop, the Law 2 policy gate, the privilege-isolated
   deployer sidecar, and the incident report page were all written with Claude Code
@@ -24,7 +24,7 @@ What the assistant was used for:
   including the adversarial tests that force the loop breaker and cost watchdog to
   fire, and the AST-based check that proves the policy gate imports no LLM client.
 - **Documentation.** `RUNNING-AGENT-K.md`, `SIGNOZ-RUNBOOK.md`, and the per-phase
-  summaries in `.planning/phases/` were assistant-drafted from the actual build.
+  build summaries were assistant-drafted from the actual build.
 
 What the assistant was **not** used for:
 
@@ -69,4 +69,4 @@ code-based policy allows it, and records its own cost and behaviour as telemetry
 _TODO before submitting: replace this section with the real eval results (EVAL-01/02)
 and keep the failures in. Do not inflate beyond "4/4 on four controlled scenarios."_
 
-See `.planning/REQUIREMENTS.md` for per-requirement status.
+See `SUBMISSION.md` (this file) for per-requirement status.

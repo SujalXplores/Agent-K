@@ -1,7 +1,7 @@
 # Agent K - developer task runner.
 #
 # Every target below is the canonical entry point for the thing it does. If you
-# find yourself typing a longer command in the README or CONTRIBUTING.md, add a
+# find yourself typing a longer command in the README or docs/CONTRIBUTING.md, add a
 # target here instead and point the docs at `make <target>`.
 #
 # Run `make` (or `make help`) with no arguments to list every target with its
@@ -10,7 +10,7 @@
 # Cross-platform note: this Makefile uses plain `python` and standard tools. On
 # Windows, `make` is available via `winget install GnuWin32.Make` or via the
 # Git for Windows bash. For a no-make fallback, every target's underlying
-# command is documented in CONTRIBUTING.md.
+# command is documented in docs/CONTRIBUTING.md.
 
 .PHONY: help bootstrap install dev test test-integration test-fast coverage seed migrate \
         smoke reset eval eval-full probe demo-report seed-demo-report \
@@ -140,7 +140,7 @@ demo: ## One-command demo: bring up backend, then start the UI
 	@echo "  Backend is up. Starting the demo UI..."
 	cd demo && npm install && npm run dev
 
-log-foundry: ## Time `foundryctl cast` and append a row to TELEMETRY-REBUILD-LOG.md
+log-foundry: ## Time `foundryctl cast` and append a row to docs/TELEMETRY-REBUILD-LOG.md
 	bash scripts/time-foundry-cast.sh
 
 # --- Docker full-stack (stretch) -------------------------------------------

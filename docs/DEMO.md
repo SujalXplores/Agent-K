@@ -11,7 +11,7 @@ Two surfaces, one backend:
 ## Start it
 
 ```bash
-./scripts/demo_up.sh
+make demo-up
 ```
 
 Idempotent — safe to re-run; skips the image build and corpus seed once done.
@@ -107,7 +107,7 @@ the verification result, addressable by incident id.
 ## Honest notes for the judges
 
 - **Diagnosis accuracy is modest.** The recorded 12-run evaluation
-  ([`evals/SUMMARY.md`](evals/SUMMARY.md)) got 5/12 diagnoses right, 3/9 on
+  ([`evals/SUMMARY.md`](../evals/SUMMARY.md)) got 5/12 diagnoses right, 3/9 on
   uncontaminated runs, while landing 10/12 expected verdicts. Say so. The
   interesting claim is not "the model is always right" — it is that a wrong
   diagnosis still cannot produce an unevidenced claim or an ungated action.
@@ -125,4 +125,4 @@ the verification result, addressable by incident id.
 | `/ask` 500s, investigations have 0 claims | No LLM provider key. |
 | Port 5432 already allocated | Another Postgres holds it. Remap the host port in a gitignored `docker-compose.override.yaml` — needs `ports: !override`, since Compose *appends* list fields rather than replacing them. |
 | Console scenario returns 422 | The alert envelope needs top-level `receiver` and `status`, not just `alerts`. |
-| `docker compose up -d rag-app` tries to pull | `rag-app` has no `build:` stanza; build the image first (`demo_up.sh` does). |
+| `docker compose up -d rag-app` tries to pull | `rag-app` has no `build:` stanza; build the image first (`make demo-up` does). |
