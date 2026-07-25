@@ -64,10 +64,50 @@ def _mock_generate(claim: str, confidence: float, input_tokens: int = 10, output
 
 def test_loop_counter_returns_none_until_threshold_exceeded():
     inv = inv_module.Investigation(id="i1", alert=_alert())
-    for _ in range(inv_module.LOOP_BREAKER_REPEAT_THRESHOLD):
+    for _ in range(inv_module.loop_breaker_threshold()):
         assert inv_module._record_mcp_query_and_check_loop(inv, "t", {"a": 1}) is None
     triggered = inv_module._record_mcp_query_and_check_loop(inv, "t", {"a": 1})
     assert triggered is not None
+
+
+# --- guardrail threshold overrides (LAW3-04/05) ---
+
+
+def test_thresholds_default_when_env_unset(monkeypatch):
+    monkeypatch.delenv("AGENT_K_LOOP_BREAKER_THRESHOLD", raising=False)
+    monkeypatch.delenv("AGENT_K_TOKEN_BUDGET", raising=False)
+    assert inv_module.loop_breaker_threshold() == inv_module.DEFAULT_LOOP_BREAKER_REPEAT_THRESHOLD
+    assert inv_module.token_budget() == inv_module.DEFAULT_TOKEN_BUDGET
+
+
+def test_thresholds_read_env_at_call_time(monkeypatch):
+    """Read per call, not captured at import - a demo tightens these live."""
+    monkeypatch.setenv("AGENT_K_LOOP_BREAKER_THRESHOLD", "0")
+    monkeypatch.setenv("AGENT_K_TOKEN_BUDGET", "1")
+    assert inv_module.loop_breaker_threshold() == 0
+    assert inv_module.token_budget() == 1
+
+
+def test_tightened_loop_threshold_fires_on_first_repeat(monkeypatch):
+    """A tightened threshold makes the real guardrail fire sooner - it does not
+    bypass it. This is what the demo's loop-breaker button relies on."""
+    monkeypatch.setenv("AGENT_K_LOOP_BREAKER_THRESHOLD", "0")
+    inv = inv_module.Investigation(id="i1", alert=_alert())
+    assert inv_module._record_mcp_query_and_check_loop(inv, "t", {"a": 1}) is not None
+
+
+@pytest.mark.parametrize("bad", ["", "not-a-number", "3.5", "  "])
+def test_malformed_threshold_env_cannot_disable_a_guardrail(monkeypatch, bad):
+    """A typo in a demo env var must not silently switch a safety guardrail off.
+
+    The failure mode being guarded against is a malformed value being coerced to
+    0 or infinity - either of which would make the guardrail fire constantly or
+    never. Both accessors fall back to their documented default instead.
+    """
+    monkeypatch.setenv("AGENT_K_LOOP_BREAKER_THRESHOLD", bad)
+    monkeypatch.setenv("AGENT_K_TOKEN_BUDGET", bad)
+    assert inv_module.loop_breaker_threshold() == inv_module.DEFAULT_LOOP_BREAKER_REPEAT_THRESHOLD
+    assert inv_module.token_budget() == inv_module.DEFAULT_TOKEN_BUDGET
 
 
 # --- _parse_hypothesis_response ---
@@ -173,7 +213,7 @@ async def test_loop_breaker_fires_on_adversarial_repeated_query(monkeypatch, in_
     assert inv.state == inv_module.InvestigationState.ESCALATED
     assert inv.incomplete is True
     assert any(e["kind"] == "loop_breaker" for e in inv.watchdog_events)
-    assert inv.mcp_query_count <= inv_module.LOOP_BREAKER_REPEAT_THRESHOLD + 1  # stopped well short of 10
+    assert inv.mcp_query_count <= inv_module.loop_breaker_threshold() + 1  # stopped well short of 10
 
     spans = [
         s for s in in_memory_exporter.get_finished_spans() if s.name == "agentk.watchdog.loop_breaker"
@@ -192,7 +232,7 @@ async def test_cost_watchdog_fires_on_forced_budget_overrun(monkeypatch, in_memo
         llm_module,
         "generate",
         _mock_generate(
-            "low confidence guess", 0.1, input_tokens=inv_module.TOKEN_BUDGET, output_tokens=1
+            "low confidence guess", 0.1, input_tokens=inv_module.token_budget(), output_tokens=1
         ),
     )
 
