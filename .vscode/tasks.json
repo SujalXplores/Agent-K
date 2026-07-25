@@ -1,0 +1,90 @@
+{
+  "//": "VS Code tasks for Agent K. Each task wraps a `make` target so the Command Palette (Ctrl+Shift+P -> Run Task) can trigger the same entry points as the terminal. `check` is marked as the default test task (Ctrl+Shift+T).",
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make check",
+      "type": "shell",
+      "command": "make check",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make test",
+      "type": "shell",
+      "command": "make test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make test-integration",
+      "type": "shell",
+      "command": "make test-integration",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make lint",
+      "type": "shell",
+      "command": "make lint",
+      "problemMatcher": ["$eslint-stylish"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make format",
+      "type": "shell",
+      "command": "make format",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make smoke",
+      "type": "shell",
+      "command": "make smoke",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make reset",
+      "type": "shell",
+      "command": "make reset",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "make seed",
+      "type": "shell",
+      "command": "make seed",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}

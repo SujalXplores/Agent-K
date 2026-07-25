@@ -31,11 +31,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from pathlib import Path
-
-# Running this file directly puts the script's own directory on sys.path, not the
-# repo root, so `import app.*` would fail. Add the repo root explicitly.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 async def list_tools() -> None:

@@ -1,0 +1,13 @@
+{
+  "//": "Recommended extensions for Agent K. VS Code prompts to install these on first open. Each entry is <publisher>.<extension> from the Marketplace.",
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "charliermarsh.ruff",
+    "ms-python.mypy-type-checker",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "ms-azuretools.vscode-docker",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

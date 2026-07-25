@@ -32,19 +32,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from app.observability import (  # noqa: E402
+from app.observability import (
     AGENTK_ACTION_KIND,
     AGENTK_ACTION_STATUS,
     AGENTK_ACTION_VERIFIED,
     AGENTK_HYPOTHESIS_CONFIDENCE,
     AGENTK_INVESTIGATION_DURATION_S,
-    AGENTK_INVESTIGATION_ID,
     AGENTK_INVESTIGATION_MCP_QUERY_COUNT,
     AGENTK_INVESTIGATION_MCP_QUERY_FAILURES,
     AGENTK_INVESTIGATION_REPEATED_QUERY_COUNT,
@@ -183,7 +179,7 @@ WIDGETS = [
     # ---------------- DASH-03: Agent Health ----------------
     panel("Agent Health", "row"),
     panel("Tokens used", "value",
-          _q("", [f"sum({AGENTK_INVESTIGATION_TOTAL_TOKENS})"], f"name = 'agentk.investigation'"),
+          _q("", [f"sum({AGENTK_INVESTIGATION_TOTAL_TOKENS})"], "name = 'agentk.investigation'"),
           "Total investigation tokens. The cost watchdog budgets on this."),
     panel("Repeated queries", "value",
           _q("", [f"sum({AGENTK_INVESTIGATION_REPEATED_QUERY_COUNT})"], "name = 'agentk.investigation'"),

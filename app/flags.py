@@ -66,6 +66,19 @@ def get_all() -> dict[str, bool]:
     return dict(_flags)
 
 
+def reset_all() -> None:
+    """Reset every flag to OFF (the process-start posture).
+
+    Demo-reset helper: clears any toggled-on failure scenario so a demo can
+    re-run from a clean state without restarting uvicorn. Mirrors the
+    all-OFF default enforced at import - this function must never leave a
+    flag ON. Called by POST /admin/reset alongside the alert/investigation/
+    cooldown stores.
+    """
+    for name in _flags:
+        _flags[name] = False
+
+
 # Env var naming the scenarios a process should boot with already ON, used to build
 # the deliberately-broken `v2-broken` image the Law 2 rollback demo rolls back FROM
 # (HV-3). See seed_flags_from_env for why this does not weaken the all-OFF default.

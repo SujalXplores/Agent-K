@@ -89,7 +89,7 @@ def test_secret_annotation_not_logged(router_client, caplog):
         resp = router_client.post("/alerts/webhook", json=_valid_payload("TOP-SECRET-VALUE"))
     assert resp.status_code == 200
     # the annotation value is persisted for Phase 5 but never dumped to logs
-    assert any("TOP-SECRET-VALUE" == r["annotations"]["summary"] for r in alerts_webhook.get_alerts())
+    assert any(r["annotations"]["summary"] == "TOP-SECRET-VALUE" for r in alerts_webhook.get_alerts())
     assert all("TOP-SECRET-VALUE" not in rec.message for rec in caplog.records)
 
 

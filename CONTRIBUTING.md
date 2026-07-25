@@ -24,16 +24,28 @@ project, run tests, and submit changes.
 
 ## Set up the RAG service
 
+The canonical setup uses `make bootstrap` (one command: venv, install, .env
+copy). The underlying steps are documented here for reference.
+
 ```bash
 git clone https://github.com/SujalXplores/Agent-K.git
 cd Agent-K
 
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+# Option A: make (recommended)
+make bootstrap
+
+# Option B: manual
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
+pip install -e ".[dev]"                                # editable install + ruff/pytest
 
 cp .env.example .env
 # fill in GROQ_API_KEY (and or CEREBRAS_API_KEY / GEMINI_API_KEY)
+# generate DEPLOYER_TOKEN: python -c "import secrets; print(secrets.token_hex(24))"
 ```
+
+`pip install -e ".[dev]"` installs the `app` and `deployer` packages in
+editable mode plus dev tooling (ruff, pytest, pytest-cov). This is what lets
+scripts in `scripts/` import `app.*` without a `sys.path` shim.
 
 ## Stand up SigNoz and the datastore
 
@@ -51,23 +63,39 @@ guide, including the required first run org and register step.
 ## Run migrations and seed the corpus
 
 ```bash
-alembic upgrade head
-python -m scripts.seed_corpus
+make migrate     # alembic upgrade head
+make seed       # python -m scripts.seed_corpus (idempotent)
 ```
 
 ## Run the service
 
 ```bash
-uvicorn app.main:app --reload
+make dev        # uvicorn app.main:app --reload --port 8000
+```
+
+Smoke test:
+
+```bash
+make smoke      # hits /healthz and one /ask
 ```
 
 ## Run tests
 
 | Command | What it does |
 | --- | --- |
-| `pytest` | Offline unit tests (mocked, no DB, no network) |
-| `pytest -m integration` | Live database tests (requires rag postgres) |
-| `python scripts/probe_ask_spans.py out.json` | Measure the real /ask span set |
+| `make test` | Offline unit tests (mocked, no DB, no network) |
+| `make test-integration` | Live database tests (requires rag postgres) |
+| `make coverage` | Tests with HTML coverage report (opens htmlcov/) |
+| `make probe` | Measure the real /ask span set into out.json |
+
+## Demo reset
+
+```bash
+make reset      # POST /admin/reset - clears flags, alerts, investigations, cooldowns
+```
+
+Clears every in-process store so a demo can re-run without restarting uvicorn.
+Does not touch SigNoz, Postgres, or the deployer.
 
 ## Set up the landing page (optional)
 
@@ -83,8 +111,14 @@ See [`landing/README.md`](landing/README.md) for the full landing page guide.
 
 | Tool | Purpose |
 | --- | --- |
-| `ruff` | Lint and format |
-| `pytest` plus `pytest-asyncio` | Tests |
+| `ruff` | Lint and format (config in `pyproject.toml`) |
+| `pytest` plus `pytest-asyncio` | Tests (config in `pyproject.toml`) |
+
+| Command | What it does |
+| --- | --- |
+| `make lint` | `ruff check .` |
+| `make format` | `ruff format .` (writes changes) |
+| `make check` | Lint + tests (pre-PR gate) |
 
 Key conventions:
 
@@ -98,8 +132,8 @@ Key conventions:
 
 ## Pull request checklist
 
-- [ ] Tests pass: `pytest`
-- [ ] Integration tests pass (if DB changes): `pytest -m integration`
+- [ ] `make check` passes (lint + tests)
+- [ ] Integration tests pass (if DB changes): `make test-integration`
 - [ ] No raw prompt, completion, or API key text in span attributes
 - [ ] Every new claim in docs carries a resolvable evidence link
 - [ ] Every new action passes through the Law 2 policy gate

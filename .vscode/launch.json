@@ -1,0 +1,60 @@
+{
+  "//": "VS Code launch configs for Agent K. Each config uses the repo's venv if present, falling back to the system python. The pytest config attaches the debugger to the test runner so breakpoints in app/ are hit during test runs.",
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "RAG service (uvicorn --reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8000"],
+      "jinja": true,
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "Deployer sidecar (uvicorn)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["deployer.main:app", "--port", "9000"],
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "Pytest (current file)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "AGENT_K_DISABLE_OTLP_EXPORT": "1"
+      }
+    },
+    {
+      "name": "Pytest (all offline tests)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "AGENT_K_DISABLE_OTLP_EXPORT": "1"
+      }
+    },
+    {
+      "name": "Seed corpus",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "scripts.seed_corpus",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    }
+  ]
+}
