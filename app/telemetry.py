@@ -37,6 +37,23 @@ DEFAULT_OTLP_ENDPOINT = "http://localhost:4318"
 DEFAULT_SERVICE_NAME = "agent-k-rag-service"
 
 
+# Set this to suppress OTLP export while STILL building all three providers, so
+# console output and in-process span capture behave exactly as in production.
+#
+# It exists because the test suite imports app.main, which calls setup_telemetry(),
+# which shipped every span pytest produced straight into the real SigNoz. Agent K
+# then investigated its own test noise: a live run on 2026-07-25 read
+# deployment.marker counts of retry_storm=7 vs prompt_regression=3 where only
+# prompt_regression had actually been injected - the retry_storm markers were
+# pytest's - and misdiagnosed the incident on that basis. Test telemetry must
+# never enter the backend the agent draws evidence from.
+#
+# D-06 says the two exporters are always on with no toggle; that decision is about
+# APPLICATION configuration and is preserved - nothing in a deployed environment
+# sets this, and no code path reads it from a config file.
+DISABLE_OTLP_EXPORT_ENV = "AGENT_K_DISABLE_OTLP_EXPORT"
+
+
 def setup_telemetry() -> None:
     """Build and register TracerProvider, MeterProvider, and LoggerProvider.
 
@@ -44,20 +61,24 @@ def setup_telemetry() -> None:
     exporter (always on, no toggle - D-06). Call once at application
     startup, after routes are registered but before
     FastAPIInstrumentor.instrument_app(app) is called.
+
+    OTLP export is suppressed only when DISABLE_OTLP_EXPORT_ENV is set - see above.
     """
     load_dotenv()
 
     otlp_base = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", DEFAULT_OTLP_ENDPOINT).rstrip("/")
     service_name = os.getenv("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME)
+    export_otlp = os.getenv(DISABLE_OTLP_EXPORT_ENV, "").lower() not in ("1", "true", "yes")
 
     resource = Resource.create({SERVICE_NAME: service_name})
 
     # --- Traces ---
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
-    tracer_provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{otlp_base}/v1/traces"))
-    )
+    if export_otlp:
+        tracer_provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{otlp_base}/v1/traces"))
+        )
     trace.set_tracer_provider(tracer_provider)
 
     # --- Metrics ---
@@ -65,8 +86,10 @@ def setup_telemetry() -> None:
         resource=resource,
         metric_readers=[
             PeriodicExportingMetricReader(ConsoleMetricExporter()),
-            PeriodicExportingMetricReader(
-                OTLPMetricExporter(endpoint=f"{otlp_base}/v1/metrics")
+            *(
+                [PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=f"{otlp_base}/v1/metrics"))]
+                if export_otlp
+                else []
             ),
         ],
     )
@@ -75,9 +98,10 @@ def setup_telemetry() -> None:
     # --- Logs ---
     logger_provider = LoggerProvider(resource=resource)
     logger_provider.add_log_record_processor(BatchLogRecordProcessor(ConsoleLogExporter()))
-    logger_provider.add_log_record_processor(
-        BatchLogRecordProcessor(OTLPLogExporter(endpoint=f"{otlp_base}/v1/logs"))
-    )
+    if export_otlp:
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(OTLPLogExporter(endpoint=f"{otlp_base}/v1/logs"))
+        )
     set_logger_provider(logger_provider)
 
     # A LoggingHandler is deliberately NOT attached here.

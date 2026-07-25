@@ -36,9 +36,19 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from opentelemetry import trace
 
-from app.observability import record_llm_call_attributes
+from app import flags
+from app.observability import AGENTK_LLM_RETRY_COUNT, record_llm_call_attributes
 
 logger = logging.getLogger(__name__)
+
+# FLAG-03 retry-storm injector constants. When retry_storm is ON, generate()
+# lowers the per-attempt timeout (making a transient failure far likelier) and
+# retries up to MAX_RETRIES times - spiking call-rate/cost while staying HTTP 200
+# on eventual success (the symptom is a COST anomaly, not an availability one).
+# When OFF, generate() makes exactly one attempt at the normal timeout.
+NORMAL_TIMEOUT_S = 30.0
+RETRY_STORM_TIMEOUT_S = 0.5
+MAX_RETRIES = 5
 
 # CLAUDE.md's locked provider table (D-08). Do NOT re-derive base_urls - groq's
 # model is the locked default; cerebras/gemini model ids are the D-08
@@ -165,7 +175,30 @@ def generate(prompt: str, system: str | None = None) -> LlmResult:
 
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("chat") as span:
-        response = client.chat.completions.create(model=cfg["model"], messages=messages)
+        # FLAG-03: read retry_storm fresh (no-restart). ON -> lowered timeout +
+        # up to MAX_RETRIES attempts; OFF -> exactly one attempt at the normal
+        # timeout. On eventual success the loop breaks and the request stays a
+        # 200-equivalent; on genuine exhaustion the last exception propagates
+        # (never a silent empty answer). AGENTK_LLM_RETRY_COUNT is the queryable
+        # cost/call-rate signal the DASH-05 cost alert keys off.
+        retry_storm = flags.is_enabled("retry_storm")
+        timeout = RETRY_STORM_TIMEOUT_S if retry_storm else NORMAL_TIMEOUT_S
+        max_attempts = MAX_RETRIES if retry_storm else 1
+
+        attempts = 0
+        response = None
+        while attempts < max_attempts:
+            attempts += 1
+            try:
+                response = client.chat.completions.create(
+                    model=cfg["model"], messages=messages, timeout=timeout
+                )
+                break
+            except Exception:
+                if attempts >= max_attempts:
+                    span.set_attribute(AGENTK_LLM_RETRY_COUNT, attempts)
+                    raise
+        span.set_attribute(AGENTK_LLM_RETRY_COUNT, attempts)
 
         # Real OpenAI-SDK completions expose usage.prompt_tokens/
         # completion_tokens (see openai.types.completion_usage), while the

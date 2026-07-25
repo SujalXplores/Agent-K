@@ -6,7 +6,7 @@ min/max length gate) before it ever reaches retrieval or the LLM prompt.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AskRequest(BaseModel):
@@ -27,3 +27,30 @@ class AskResponse(BaseModel):
 
     answer: str
     sources: list[Source]
+
+
+class FlagToggleRequest(BaseModel):
+    """POST /admin/flags body — toggle one failure-injection scenario (FLAG-01)."""
+
+    name: str
+    enabled: bool
+
+    @field_validator("name")
+    @classmethod
+    def _known_flag(cls, value: str) -> str:
+        # Import app.flags lazily inside the validator (not at module load) so
+        # app.schemas has no import-time dependency on app.flags — avoids the
+        # import cycle app.flags -> app.observability -> ... and keeps schemas
+        # importable in isolation. An unknown flag name raises ValueError, which
+        # Pydantic surfaces as a 422 at the endpoint.
+        from app.flags import FLAG_NAMES
+
+        if value not in FLAG_NAMES:
+            raise ValueError(f"unknown flag name {value!r}; must be one of {list(FLAG_NAMES)}")
+        return value
+
+
+class FlagStateResponse(BaseModel):
+    """GET/POST /admin/flags response — current state of all four flags (FLAG-01)."""
+
+    flags: dict[str, bool]

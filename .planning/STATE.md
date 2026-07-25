@@ -2,19 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02
-current_phase_name: rag-service-core
-status: gap_closure_applied
-stopped_at: Phase 02 gap-closure plans 02-05..02-07 executed — code fixed, 25/25 tests passing, pending HV-1/HV-2 human verification + formal re-verification
-last_updated: "2026-07-24T05:30:00.000Z"
-last_activity: 2026-07-24
-last_activity_desc: Phase 02 gap-closure plans 02-05, 02-06, 02-07 executed directly (no gsd-execute-phase) — pgvector adapter conflict fixed, DB instrumentation wired, llm.py hardened, REQUIREMENTS.md ledger corrected
+status: verifying
+stopped_at: "Phase 5 executed directly (no gsd): investigation state machine, Law 1 evidence schema, Law 3 self-telemetry/loop-breaker/cost-watchdog all built and offline-tested (39 new tests, 97/98 total offline passing). All 14 Phase-5 requirements code-complete; INV-03/LAW1-04/LAW1-05 live-verification halves pending (no SigNoz stack/MCP server/LLM key in this env)."
+last_updated: "2026-07-24T16:17:17.718Z"
+last_activity: 2026-07-24 — Phase 02 gap-closure plans 02-05..02-07 executed directly; see 02-05/06/07-SUMMARY.md
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 10
-  completed_plans: 10
-  percent: 14
+  completed_phases: 2
+  total_plans: 15
+  completed_plans: 16
+  percent: 29
 ---
 
 # Project State
@@ -112,6 +109,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T05:30:00.000Z
-Stopped at: Phase 02 gap-closure plans 02-05..02-07 executed directly (code fixed, 25/25 tests pass) — see .planning/phases/02-rag-service-core/{02-05,02-06,02-07}-SUMMARY.md. Formal re-verification and HV-1/HV-2 human checks still outstanding before Phase 2 can be marked fully complete.
+Last session: 2026-07-24T16:17:17.688Z
+Stopped at: Phase 5 executed directly (no gsd): investigation state machine, Law 1 evidence schema, Law 3 self-telemetry/loop-breaker/cost-watchdog all built and offline-tested (39 new tests, 97/98 total offline passing). All 14 Phase-5 requirements code-complete; INV-03/LAW1-04/LAW1-05 live-verification halves pending (no SigNoz stack/MCP server/LLM key in this env).
 Resume file: 
+.planning/phases/05-agent-k-core-loop/05-01-SUMMARY.md

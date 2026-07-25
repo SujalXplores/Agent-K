@@ -44,3 +44,6 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+# SigNoz MCP server binary (downloaded per-machine, see RUNNING-AGENT-K.md)
+signoz-mcp-server

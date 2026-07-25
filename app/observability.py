@@ -42,6 +42,82 @@ GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
 AGENTK_LLM_PROVIDER = "agentk.llm.provider"
 AGENTK_LLM_ESTIMATED_COST_USD = "agentk.llm.estimated_cost_usd"
 
+# --- fault-injection + deployment-marker attribute-name constants (Phase 3) ---
+# Single source of truth (D-06) for every attribute the four seeded failure
+# scenarios and the FLAG-06 deployment marker stamp on spans. Downstream
+# injector modules (app/rag.py, app/llm.py, app/db.py, app/flags.py) import
+# these constants and never define the attribute strings inline, so the
+# Phase 3/7 dashboard queries that filter on them cannot silently drift.
+RAG_PROMPT_REGRESSION_ACTIVE = "rag.prompt_construction.regression_active"  # FLAG-02 (app/rag.py)
+RAG_RETRIEVAL_LATENCY_INJECTED = "rag.retrieval.latency_injected"  # FLAG-04 (app/rag.py)
+AGENTK_LLM_RETRY_COUNT = "agentk.llm.retry_count"  # FLAG-03 (app/llm.py)
+AGENTK_DB_POOL_EXHAUSTED = "agentk.db.pool_exhausted"  # FLAG-05 (app/db.py)
+DEPLOYMENT_MARKER_SCENARIO = "deployment.scenario"  # FLAG-06 (app/flags.py)
+DEPLOYMENT_MARKER_VERSION = "deployment.version"  # FLAG-06 (app/flags.py)
+
+# --- SigNoz MCP query attribute-name constants (Phase 4) ---
+# Stamped by app/signoz_mcp.py's single query_signoz() call site (MCP-02) on every
+# "signoz_mcp.query" span, regardless of outcome, so Phase 5's investigation loop
+# can read them back for loop/repeated-query detection (LAW3-02) without needing
+# any MCP-specific knowledge itself.
+AGENTK_MCP_TOOL_NAME = "agentk.mcp.tool_name"
+AGENTK_MCP_QUERY_HASH = "agentk.mcp.query_hash"
+
+# --- Investigation self-telemetry attribute-name constants (Phase 5, Law 3) ---
+# Stamped by app/investigation.py's run_investigation() on the "agentk.investigation"
+# span (LAW3-02/03) and by its child "agentk.hypothesis"/"agentk.watchdog.*" spans.
+AGENTK_INVESTIGATION_ID = "agentk.investigation.id"
+AGENTK_INVESTIGATION_STATE = "agentk.investigation.state"
+AGENTK_INVESTIGATION_INCOMPLETE = "agentk.investigation.incomplete"
+AGENTK_INVESTIGATION_DURATION_S = "agentk.investigation.duration_s"
+AGENTK_INVESTIGATION_MCP_QUERY_COUNT = "agentk.investigation.mcp_query_count"
+AGENTK_INVESTIGATION_MCP_QUERY_FAILURES = "agentk.investigation.mcp_query_failures"
+AGENTK_INVESTIGATION_REPEATED_QUERY_COUNT = "agentk.investigation.repeated_query_count"
+AGENTK_INVESTIGATION_HYPOTHESIS_COUNT = "agentk.investigation.hypothesis_count"
+AGENTK_INVESTIGATION_TOTAL_TOKENS = "agentk.investigation.total_tokens"
+AGENTK_HYPOTHESIS_CONFIDENCE = "agentk.hypothesis.confidence"
+AGENTK_HYPOTHESIS_LLM_CONFIDENCE = "agentk.hypothesis.llm_confidence"
+AGENTK_WATCHDOG_KIND = "agentk.watchdog.kind"  # "loop_breaker" | "cost_budget"
+AGENTK_WATCHDOG_QUERY_HASH = "agentk.watchdog.query_hash"
+AGENTK_WATCHDOG_REPEAT_COUNT = "agentk.watchdog.repeat_count"
+AGENTK_WATCHDOG_TOTAL_TOKENS = "agentk.watchdog.total_tokens"
+AGENTK_WATCHDOG_BUDGET = "agentk.watchdog.budget"
+
+# --- Law 2 policy-gate attribute-name constants (Phase 6) ---
+# Stamped by app/policy.py's evaluate_policy() on the "agentk.policy.decision"
+# span (LAW2-06). The requirement enumerates exactly what must be recorded -
+# requested action, incident ID, SLO value, threshold, confidence, allowlist
+# result, cooldown result, final verdict, reason - so every one of those has a
+# constant here and none is set inline at the call site. The per-check *_PASSED
+# attributes make each individual gate independently queryable in the Phase 7
+# Action Audit Trail dashboard, so a denied verdict shows WHICH check denied it.
+AGENTK_POLICY_ACTION = "agentk.policy.action"
+AGENTK_POLICY_INCIDENT_ID = "agentk.policy.incident_id"
+AGENTK_POLICY_SLO_VALUE = "agentk.policy.slo_value"
+AGENTK_POLICY_SLO_THRESHOLD = "agentk.policy.slo_threshold"
+AGENTK_POLICY_CONFIDENCE = "agentk.policy.confidence"
+AGENTK_POLICY_CONFIDENCE_THRESHOLD = "agentk.policy.confidence_threshold"
+AGENTK_POLICY_SLO_PASSED = "agentk.policy.slo_passed"
+AGENTK_POLICY_ALLOWLIST_PASSED = "agentk.policy.allowlist_passed"
+AGENTK_POLICY_COOLDOWN_PASSED = "agentk.policy.cooldown_passed"
+AGENTK_POLICY_CONFIDENCE_PASSED = "agentk.policy.confidence_passed"
+AGENTK_POLICY_DEPLOYMENT_RELATED_PASSED = "agentk.policy.deployment_related_passed"
+AGENTK_POLICY_SANDBOX_PASSED = "agentk.policy.sandbox_passed"
+AGENTK_POLICY_VERDICT = "agentk.policy.verdict"  # "approved" | "denied"
+AGENTK_POLICY_REASON = "agentk.policy.reason"
+AGENTK_POLICY_FAILED_CHECKS = "agentk.policy.failed_checks"  # comma-joined check names
+
+# --- Law 2 action-execution attribute-name constants (Phase 6) ---
+# Stamped by app/rollback.py on the "agentk.action.rollback" span - the record of
+# what Agent K actually DID after an approved verdict, and whether SigNoz
+# independently confirmed recovery afterwards (LAW2-04).
+AGENTK_ACTION_KIND = "agentk.action.kind"
+AGENTK_ACTION_STATUS = "agentk.action.status"  # "executed" | "failed" | "conflict"
+AGENTK_ACTION_HTTP_STATUS = "agentk.action.http_status"
+AGENTK_ACTION_PREVIOUS_IMAGE = "agentk.action.previous_image"  # sidecar-reported pre-mutation tag
+AGENTK_ACTION_VERIFIED = "agentk.action.verified"
+AGENTK_ACTION_VERIFICATION_DETAIL = "agentk.action.verification_detail"
+
 # Best-effort, zero-budget-friendly per-1K-token rate used only to produce a
 # non-zero estimated_cost_usd attribute for Law 3 reuse (Phase 5). Free-tier
 # providers (Groq/Cerebras/Gemini Flash) have effectively $0 real cost during

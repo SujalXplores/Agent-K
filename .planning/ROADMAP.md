@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Failure Injection + Dashboard + Alerting** - Wire the four toggleable failure scenarios, the Service Health/Incident Context dashboard sections, and SLO/burn-rate alerts that fire a webhook
 - [ ] **Phase 4: SigNoz MCP Integration** - Give Agent K a single-call-site MCP client wrapper that retrieves real evidence from SigNoz
 - [ ] **Phase 5: Agent K Core Loop** - Build the investigation state machine with Law 1 (evidence-backed claims) and Law 3 (self-telemetry, loop breaker, cost watchdog) instrumented inline
-- [ ] **Phase 6: Policy Gate + Rollback Executor** - Build Law 2's zero-LLM policy gate and the single allowlisted, verified-outcome rollback action, executed through a privilege-isolated `deployer` sidecar (sole Docker-socket holder)
+- [x] **Phase 6: Policy Gate + Rollback Executor** (code-complete 2026-07-25; live rollback = HV-3) - Build Law 2's zero-LLM policy gate and the single allowlisted, verified-outcome rollback action, executed through a privilege-isolated `deployer` sidecar (sole Docker-socket holder)
 - [ ] **Phase 7: Report, Dashboard Polish & Evaluation** - Ship the HTML incident report, complete the Agent Health/Action Audit Trail dashboard sections, run the 12-run eval harness, and write the submission blog
 
 ## Phase Details
@@ -93,11 +93,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
 
   1. An admin can toggle any of the four failure scenarios via an HTTP endpoint without restarting the app, and each toggle produces its documented symptom (broken prompt / retry storm / retrieval latency / DB-pool exhaustion) visible in SigNoz traces, metrics, or logs.
-  2. Deployment-caused scenarios (prompt-regression, retry-storm) create a SigNoz deployment marker; non-deployment scenarios (retrieval-latency, DB-pool-exhaustion) do not — and the dashboard's Incident Context section reflects that distinction.
+  2. Deployment-caused scenarios (prompt-regression, retry-storm) create a deployment marker; non-deployment scenarios (retrieval-latency, DB-pool-exhaustion) do not — and the dashboard's Incident Context section reflects that distinction. **(Mechanism corrected 2026-07-24: a custom `deployment.marker` OTel span, not a SigNoz API — SigNoz has no deployment-marker API; see 03-RESEARCH.md.)**
   3. The SigNoz dashboard's Service Health and Incident Context sections show live request rate, error rate, latency, SLO/burn-rate status, deployment version, active alerts, and related traces.
   4. When a configured SLO/burn-rate/cost alert breaches, SigNoz fires a webhook to a reachable HTTP endpoint, confirmed firing end-to-end.
 
-**Plans**: TBD
+**Plans**: 5 (planned 2026-07-24, plan-checker PASS) — 03-01 flag store + deployment.marker span (FLAG-01/06); 03-02 prompt-regression + retrieval-latency (FLAG-02/04); 03-03 retry-storm + pool-exhaustion (FLAG-03/05); 03-04 webhook receiver (DASH-05); 03-05 SigNoz-UI runbook + JSON export (DASH-01/02/05, autonomous:false — gated on HV-2)
 
 ### Phase 4: SigNoz MCP Integration
 
@@ -106,10 +106,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: MCP-01, MCP-02
 **Success Criteria** (what must be TRUE):
 
-  1. Agent K's process connects to the SigNoz MCP server via the official MCP Python SDK and a throwaway script retrieves a real trace, log, or metric query result end-to-end (not mocked).
-  2. Every MCP query issued goes through one wrapper function, confirmed by seeing a span recorded and a query hash computed for each call made through it.
+  1. Agent K's process connects to the SigNoz MCP server via the official MCP Python SDK and a throwaway script retrieves a real trace, log, or metric query result end-to-end (not mocked). **(Wrapper + throwaway script built 2026-07-24; running it against a real server is human-verification, no SigNoz MCP binary/live stack in this environment — same HV-2 gate carried from Phases 2/3.)**
+  2. Every MCP query issued goes through one wrapper function, confirmed by seeing a span recorded and a query hash computed for each call made through it. **(Done — app/signoz_mcp.py's query_signoz(), 7 offline tests, grep-verified single call site.)**
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-24, no gsd) — 04-01 query_signoz() wrapper + compute_query_hash + probe_signoz_mcp.py throwaway script (MCP-01/02)
 
 ### Phase 5: Agent K Core Loop
 
@@ -118,13 +118,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: INV-01, INV-02, INV-03, LAW1-01, LAW1-02, LAW1-03, LAW1-04, LAW1-05, LAW3-01, LAW3-02, LAW3-03, LAW3-04, LAW3-05, LAW3-06
 **Success Criteria** (what must be TRUE):
 
-  1. Posting a SigNoz alert webhook to Agent K's endpoint starts an investigation that runs the state machine to a terminal reported/escalated state, for each of the four seeded incidents, producing at least one root-cause hypothesis per incident.
-  2. Every claim Agent K would publish carries claim text, a hybrid LLM-proposed/code-recalibrated confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link — and any claim with an empty evidence list is stripped before it would be shown.
-  3. A human can navigate from an incident trace to Agent K's investigation spans via a span link in one click, and an automated link checker confirms 100% of rendered evidence links resolve against the live SigNoz instance.
-  4. Every investigation's LLM token counts/estimated cost, duration, MCP query count/failures/repeats, and hypothesis count/confidence are recorded as telemetry.
-  5. An adversarial repeated-query test actually triggers the loop breaker (stops the investigation, fires a watchdog alert, marks it incomplete, escalates with partial evidence), and a separate forced-budget-overrun test actually triggers the cost watchdog — both observed firing, not just present in code.
+  1. Posting a SigNoz alert webhook to Agent K's endpoint starts an investigation that runs the state machine to a terminal reported/escalated state, for each of the four seeded incidents, producing at least one root-cause hypothesis per incident. **(Done — offline-tested with mocked evidence/LLM for all 4 incidents; real diagnosis quality against a live LLM is Phase 7 EVAL-01.)**
+  2. Every claim Agent K would publish carries claim text, a hybrid LLM-proposed/code-recalibrated confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link — and any claim with an empty evidence list is stripped before it would be shown. **(Done — app/claims.py, 15 offline tests.)**
+  3. A human can navigate from an incident trace to Agent K's investigation spans via a span link in one click, and an automated link checker confirms 100% of rendered evidence links resolve against the live SigNoz instance. **(Code complete — span-link mechanism + scripts/check_evidence_links.py, offline-tested; live confirmation pending, no SigNoz stack in this environment, same HV gate as Phases 2-4.)**
+  4. Every investigation's LLM token counts/estimated cost, duration, MCP query count/failures/repeats, and hypothesis count/confidence are recorded as telemetry. **(Done — agentk.investigation/agentk.hypothesis span attributes.)**
+  5. An adversarial repeated-query test actually triggers the loop breaker (stops the investigation, fires a watchdog alert, marks it incomplete, escalates with partial evidence), and a separate forced-budget-overrun test actually triggers the cost watchdog — both observed firing, not just present in code. **(Done — both proven via real emitted spans in tests/test_investigation.py.)**
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-24, no gsd) — 05-01: app/claims.py + app/investigation.py + webhook wiring + link checker (INV-01/02/03, LAW1-01..05, LAW3-01..06)
 **Constraint**: This is the highest-requirement-count phase (14 reqs) and should be substantially complete before the team-availability gap (Jul 24-26) begins, since Phase 6's policy gate is a hard dependency on its evidence/confidence schema.
 
 ### Phase 6: Policy Gate + Rollback Executor
@@ -140,7 +140,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A `deployer` sidecar is the sole holder of the Docker socket and exposes exactly one authenticated `POST /rollback` endpoint; Agent K never holds the socket. On an approved rollback Agent K makes one authenticated HTTP call carrying no image reference, the sidecar captures the pre-mutation image tag, runs `docker compose up -d --force-recreate` (never `restart`) under a concurrency lock, and creates a SigNoz deployment marker; Agent K then re-queries SigNoz to confirm recovery before recording the verified outcome.
   5. Every policy decision (requested action, incident ID, SLO value, threshold, confidence, allowlist result, cooldown result, final verdict, reason) is recorded as a telemetry span.
 
-**Plans**: TBD
+**Plans**: 1 (executed directly 2026-07-25, no gsd) — 06-01: app/policy.py zero-LLM gate + deployer/ sidecar + app/rollback.py act stage (LAW2-01..07). 56 new tests; 158 passing offline. **Live rollback is HV-3: the RAG app is not containerized and no versioned image tags exist, so no real rollback has executed — see 06-01-SUMMARY.md.**
 **Constraint**: Safety-critical phase (the `deployer` sidecar holds the Docker socket and mutates the monitored app's running config) landing inside or just before the team-availability gap (Jul 24-26) — the sidecar isolation boundary and policy schema should be settled early, not debugged with reduced headcount. The sidecar has no dependency on Agent K's reasoning pipeline (only on the app + versioned images existing), so its skeleton (container, socket mount, one hardcoded authenticated endpoint, concurrency lock) can be scaffolded and smoke-tested well before this phase to de-risk it.
 
 ### Phase 7: Report, Dashboard Polish & Evaluation
@@ -156,7 +156,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Each of the four seeded incidents has been run 3 times (12 runs total) with diagnosis correctness, cost, time-to-diagnosis, and rollback result recorded per run, staying within Groq free-tier rate limits with a proven-working Cerebras overflow path.
   5. The two rollback scenarios have a scripted manual-baseline comparison, and the submission blog reports all of this honestly (including any failed/confusing runs) with AI-assistant usage disclosed and demo-script screenshots/footage included.
 
-**Plans**: TBD
+**Plans**: 07-01 (REPT-01/02/03, report page — complete); DASH-03/04, EVAL-01..04, SUB-01/02 remain
 **Constraint**: Falls entirely within the team-availability gap (Jul 24-26) and is timeline-sensitive by nature (12 paced eval runs + blog writing) — the Day 5-6 clean-machine-rebuild and Groq-rate-limit checkpoints (research-flagged) must be validated before this phase's eval runs start, with room to cut scope (smaller embedding model, pre-baked corpus) if either fails.
 **UI hint**: yes
 
@@ -169,8 +169,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Telemetry Foundation | 3/3 | Complete   | 2026-07-23 |
 | 2. RAG Service Core | 4/4 | Verification gaps | - |
-| 3. Failure Injection + Dashboard + Alerting | 0/TBD | Not started | - |
-| 4. SigNoz MCP Integration | 0/TBD | Not started | - |
-| 5. Agent K Core Loop | 0/TBD | Not started | - |
-| 6. Policy Gate + Rollback Executor | 0/TBD | Not started | - |
-| 7. Report, Dashboard Polish & Evaluation | 0/TBD | Not started | - |
+| 3. Failure Injection + Dashboard + Alerting | 4/5 | Waves 1-2 done (code+tests); 03-05 pending (SigNoz UI, HV-2) | - |
+| 4. SigNoz MCP Integration | 1/1 | Code+tests done; live-server proof pending (HV) | 2026-07-24 |
+| 5. Agent K Core Loop | 1/1 | Code+tests done; live-stack proof pending (HV) | 2026-07-24 |
+| 6. Policy Gate + Rollback Executor | 1/1 | Code+tests done; live rollback pending (HV-3) | 2026-07-25 |
+| 7. Report, Dashboard Polish & Evaluation | 1/4 | 07-01 done (REPT-01/02/03); DASH-03/04, EVAL-01..04, SUB-01/02 pending | - |
