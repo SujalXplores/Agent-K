@@ -67,7 +67,7 @@ Expected: a ~50MB binary at `/tmp/signoz-mcp-server.exe`.
 ### 1e. Copy the binary to the project directory
 
 ```powershell
-Copy-Item "\\wsl.localhost\Ubuntu\tmp\signoz-mcp-server.exe" "f:\Hackathon ideas\Agent-K\signoz-mcp-server.exe" -Force
+Copy-Item "\\wsl.localhost\Ubuntu\tmp\signoz-mcp-server.exe" "f:\Hackathon ideas\Agent-K\bin\signoz-mcp-server.exe" -Force
 ```
 
 ## Step 2 — Generate a SigNoz API key (JWT)
@@ -95,7 +95,7 @@ Copy the full JWT string (starts with `eyJ...`).
 Set `SIGNOZ_API_KEY` in `f:\Hackathon ideas\Agent-K\.env`:
 
 ```
-SIGNOZ_MCP_COMMAND=signoz-mcp-server.exe
+SIGNOZ_MCP_COMMAND=bin/signoz-mcp-server.exe
 SIGNOZ_URL=http://localhost:8080
 SIGNOZ_API_KEY="<paste the JWT here>"
 ```
@@ -131,7 +131,7 @@ To verify a real query end-to-end against a live stack, set the env vars and run
 ```powershell
 $env:SIGNOZ_API_KEY = (.\.venv\Scripts\python.exe -c "from dotenv import dotenv_values; print(dotenv_values('.env')['SIGNOZ_API_KEY'])")
 $env:SIGNOZ_URL = "http://localhost:8080"
-$env:SIGNOZ_MCP_COMMAND = "signoz-mcp-server.exe"
+$env:SIGNOZ_MCP_COMMAND = "bin/signoz-mcp-server.exe"
 .\.venv\Scripts\python.exe -m pytest tests/test_signoz_mcp.py -v
 ```
 
@@ -267,7 +267,7 @@ The MCP server binary crashed on startup. Run it directly to see the error:
 $env:SIGNOZ_URL = "http://localhost:8080"
 $env:SIGNOZ_API_KEY = "test"
 $env:TRANSPORT_MODE = "stdio"
-.\signoz-mcp-server.exe
+.\bin\signoz-mcp-server.exe
 ```
 
 ### Investigation shows "Needs human" with 5 query failures
@@ -279,8 +279,8 @@ The MCP server is connecting but the queries are failing. Check:
 
 ### `signoz-mcp-server.exe` not found
 
-The binary isn't in the project root or isn't on PATH. Either:
-- Copy it to `f:\Hackathon ideas\Agent-K\signoz-mcp-server.exe` (Step 1e)
+The binary isn't in `bin/` or isn't on PATH. Either:
+- Copy it to `bin\signoz-mcp-server.exe` (Step 1e)
 - Or set `SIGNOZ_MCP_COMMAND` to the full absolute path in `.env`
 
 ## What the MCP tool names are (reference)

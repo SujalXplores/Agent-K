@@ -13,7 +13,7 @@ re-downloading torch.
 
 What it does NOT do: create your .env or supply an LLM API key. Without a
 provider key the retrieval half works and investigations still run to a terminal
-state, but no answer is generated and no hypothesis is formed - see DEMO.md.
+state, but no answer is generated and no hypothesis is formed - see docs/DEMO.md.
 
 Environment overrides:
     RAG_IMAGE   Docker image tag for the RAG app (default: agent-k-rag:v1-good)
@@ -218,7 +218,7 @@ def main() -> int:
   Help centre   http://localhost:3000
   Console       http://localhost:3000/console      <- run the four incidents here
 
-  See DEMO.md for the walkthrough.""")
+  See docs/DEMO.md for the walkthrough.""")
     return 0
 
 

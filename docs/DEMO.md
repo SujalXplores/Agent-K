@@ -107,7 +107,7 @@ the verification result, addressable by incident id.
 ## Honest notes for the judges
 
 - **Diagnosis accuracy is modest.** The recorded 12-run evaluation
-  ([`evals/SUMMARY.md`](evals/SUMMARY.md)) got 5/12 diagnoses right, 3/9 on
+  ([`evals/SUMMARY.md`](../evals/SUMMARY.md)) got 5/12 diagnoses right, 3/9 on
   uncontaminated runs, while landing 10/12 expected verdicts. Say so. The
   interesting claim is not "the model is always right" — it is that a wrong
   diagnosis still cannot produce an unevidenced claim or an ungated action.

@@ -44,7 +44,7 @@ services:
       # Which MCP server Agent K spawns for evidence. Empty defaults to the real
       # ./signoz-mcp-server binary (app/signoz_mcp.py DEFAULT_MCP_COMMAND) - the
       # fixture is never the default, so a misconfigured stack fails loudly
-      # rather than quietly serving hand-authored evidence. See DEMO.md.
+      # rather than quietly serving hand-authored evidence. See docs/DEMO.md.
       SIGNOZ_MCP_COMMAND: ${SIGNOZ_MCP_COMMAND:-}
       SIGNOZ_MCP_ARGS: ${SIGNOZ_MCP_ARGS:-}
       DEMO_RAG_URL: ${DEMO_RAG_URL:-}

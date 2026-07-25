@@ -115,7 +115,7 @@ npm install
 npm run dev
 ```
 
-See [`landing/README.md`](landing/README.md) for the full landing page guide.
+See [`landing/README.md`](../landing/README.md) for the full landing page guide.
 
 ## Code style
 
@@ -162,4 +162,4 @@ a human before merge. Do not hide AI assistance in commit messages or PRs.
 ## License
 
 By contributing, you agree that your contributions will be licensed under the
-MIT License. See [`LICENSE`](LICENSE).
+MIT License. See [`LICENSE`](../LICENSE).

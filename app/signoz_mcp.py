@@ -19,7 +19,7 @@ separate module-level function that query_signoz() is the only caller of. Kept
 separate purely so tests can monkeypatch it (mirroring app/llm.py's `OpenAI`
 monkeypatch pattern) - no real SigNoz MCP server or live SigNoz stack is required to
 to test the wrapper's span/hash contract. End-to-end verification against a real
-server is a human-verification step (see MCP-SETUP.md), not covered by the
+server is a human-verification step (see docs/MCP-SETUP.md), not covered by the
 offline test suite.
 """
 
