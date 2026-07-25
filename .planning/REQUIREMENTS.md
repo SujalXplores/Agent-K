@@ -83,7 +83,7 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Evaluation Harness (EVAL)
 
-- [ ] **EVAL-01**: Each of the four seeded incidents runs 3 times, recording diagnosis correctness, investigation cost, time-to-diagnosis, and rollback result per run
+- [x] **EVAL-01**: Each of the four seeded incidents runs 3 times, recording diagnosis correctness, investigation cost, time-to-diagnosis, and rollback result per run
 - [ ] **EVAL-02**: The evaluation harness paces/backs off LLM calls to stay within Groq free-tier rate limits across all 12 runs, with the Cerebras overflow path proven working before the final eval
 - [ ] **EVAL-03**: The two rollback scenarios are compared against a scripted manual baseline (time/steps for a human to reach the same diagnosis/action)
 - [ ] **EVAL-04**: Results are reported honestly in the submission blog, including any failed or confusing runs, without inflating claims beyond "4/4 on four controlled scenarios"
@@ -165,8 +165,8 @@ Populated during roadmap creation.
 | REPT-01 | Phase 7 | Complete (offline-tested: claims, evidence links, verdict, verification render) |
 | REPT-02 | Phase 7 | Complete (offline-tested: /report/{id} + /report index, newest-first) |
 | REPT-03 | Phase 7 | Complete (offline-tested: loop-breaker/cost-watchdog render as needs-human) |
-| EVAL-01 | Phase 7 | Pending |
-| EVAL-02 | Phase 7 | Pending |
+| EVAL-01 | Phase 7 | Complete (two full 12-run evals; diagnosis/cost/time/rollback recorded per run — evals/) |
+| EVAL-02 | Phase 7 | Rate-limit half COMPLETE (75s/210s pacing, 0 rate_limit_exceeded across 12 runs). Cerebras overflow UNPROVEN — no Cerebras key available |
 | EVAL-03 | Phase 7 | Pending |
 | EVAL-04 | Phase 7 | Pending |
 | SUB-01 | Phase 7 | Complete (SUBMISSION.md disclosure written; closes fully on actual submission) |
