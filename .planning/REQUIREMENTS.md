@@ -31,10 +31,10 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Dashboard & Alerts (DASH)
 
-- [ ] **DASH-01**: One SigNoz dashboard, hand-built in the SigNoz UI and exported as JSON into the repo, contains a Service Health section (request rate, error rate, latency, retrieval latency, LLM latency, SLO status, burn rate, current deployment version)
-- [ ] **DASH-02**: The dashboard's Incident Context section shows active alerts, deployment markers, incident start time, affected service, related trace IDs, and links to relevant traces/logs/metrics
-- [ ] **DASH-03**: The dashboard's Agent Health section shows cost per investigation, token usage, investigation duration, MCP query count, query failures, repeated-query count, hypothesis confidence, and watchdog alerts
-- [ ] **DASH-04**: The dashboard's Action Audit Trail section shows proposed action, policy checks, SLO/confidence values, allow/deny verdict, execution time, and verification result — with denied verdicts given equal visual prominence to approved ones
+- [x] **DASH-01**: One SigNoz dashboard, hand-built in the SigNoz UI and exported as JSON into the repo, contains a Service Health section (request rate, error rate, latency, retrieval latency, LLM latency, SLO status, burn rate, current deployment version)
+- [x] **DASH-02**: The dashboard's Incident Context section shows active alerts, deployment markers, incident start time, affected service, related trace IDs, and links to relevant traces/logs/metrics
+- [x] **DASH-03**: The dashboard's Agent Health section shows cost per investigation, token usage, investigation duration, MCP query count, query failures, repeated-query count, hypothesis confidence, and watchdog alerts
+- [x] **DASH-04**: The dashboard's Action Audit Trail section shows proposed action, policy checks, SLO/confidence values, allow/deny verdict, execution time, and verification result — with denied verdicts given equal visual prominence to approved ones
 - [ ] **DASH-05**: Service SLOs and burn-rate/cost alert rules are hand-built in the SigNoz UI, configured separately from the dashboard, and wired to fire a webhook to Agent K when breached
 
 ### SigNoz MCP Integration (MCP)
@@ -134,10 +134,10 @@ Populated during roadmap creation.
 | FLAG-04 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
 | FLAG-05 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
 | FLAG-06 | Phase 3 | Complete (live: deployment.marker spans queried back from SigNoz 2026-07-25) |
-| DASH-01 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
-| DASH-02 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
-| DASH-03 | Phase 7 | Pending |
-| DASH-04 | Phase 7 | Pending |
+| DASH-01 | Phase 3 | Complete (Service Health section, 7 panels; JSON at dashboards/agent-k.json) |
+| DASH-02 | Phase 3 | Complete (Incident Context: markers by scenario, investigation states, error-trace list with trace IDs) |
+| DASH-03 | Phase 7 | Complete (Agent Health: tokens, cost, duration p95, MCP queries/failures, repeated queries, confidence, watchdogs — all verified returning live data) |
+| DASH-04 | Phase 7 | Complete (Action Audit Trail; verdicts grouped so denied and approved share one table with equal weight — live: denied 507 / approved 217) |
 | DASH-05 | Phase 3 | Code half done (POST /alerts/webhook, offline-tested); SigNoz alert rule + channel = Plan 03-05 (HV-2) |
 | MCP-01 | Phase 4 | Complete (live: signoz-mcp-server v0.9.0, 41 tools, real evidence returned 2026-07-25) |
 | MCP-02 | Phase 4 | Complete (offline-tested: single call-site, span + query hash on every call) |
