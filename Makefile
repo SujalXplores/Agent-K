@@ -12,8 +12,12 @@
 # Git for Windows bash. For a no-make fallback, every target's underlying
 # command is documented in CONTRIBUTING.md.
 
-.PHONY: help bootstrap install dev test test-integration seed eval probe smoke reset \
-        lint format check coverage dashboard log-foundry demo-report
+.PHONY: help bootstrap install dev test test-integration test-fast coverage seed migrate \
+        smoke reset eval eval-full probe demo-report seed-demo-report \
+        demo demo-up demo-ui up down ps \
+        lint format format-check format-all check check-env \
+        dashboard dashboard-create log-foundry \
+        pre-commit-install pre-commit-run
 
 # --- Defaults ----------------------------------------------------------------
 # PYTHON is the interpreter used for all `python -m ...` invocations. Override
@@ -43,6 +47,9 @@ bootstrap: ## Full fresh-machine setup: create venv, install deps, copy .env
 
 install: ## Install the package + dev deps into the current environment (no venv)
 	pip install -e ".[dev]"
+
+check-env: ## Validate .env: DEPLOYER_TOKEN, provider key, DB/SigNoz reachability
+	$(PYTHON) scripts/check_env.py
 
 # --- Run ---------------------------------------------------------------------
 
@@ -109,14 +116,43 @@ demo-report: ## Seed three SYNTHETIC investigations so /report renders without a
 	@echo "  Open: $(APP_URL)/report"
 	@echo "  NOTE: data is fabricated - see scripts/seed_demo_report.py header."
 
+seed-demo-report: ## Alias for demo-report (seed synthetic investigations)
+	$(PYTHON) -m scripts.seed_demo_report
+	@echo "  Open: $(APP_URL)/report"
+
 dashboard: ## Build the Agent K SigNoz dashboard JSON (use --create to push to SigNoz)
 	$(PYTHON) -m scripts.build_dashboard
 
 dashboard-create: ## Build the dashboard AND create it in SigNoz via MCP
 	$(PYTHON) -m scripts.build_dashboard --create
 
+# --- Demo orchestration ------------------------------------------------------
+
+demo-up: ## Bring up the full backend (SigNoz + Postgres + rag-app) - cross-platform
+	$(PYTHON) scripts/demo_up.py
+
+demo-ui: ## Start the demo Next.js UI (Flowdeck support + Agent K console)
+	cd demo && npm install && npm run dev
+
+demo: ## One-command demo: bring up backend, then start the UI
+	$(PYTHON) scripts/demo_up.py
+	@echo ""
+	@echo "  Backend is up. Starting the demo UI..."
+	cd demo && npm install && npm run dev
+
 log-foundry: ## Time `foundryctl cast` and append a row to TELEMETRY-REBUILD-LOG.md
 	bash scripts/time-foundry-cast.sh
+
+# --- Docker full-stack (stretch) -------------------------------------------
+
+up: ## Start all docker-compose services (rag-postgres + rag-app + deployer)
+	docker compose up -d
+
+down: ## Stop all docker-compose services
+	docker compose down
+
+ps: ## Show running docker-compose services and their health
+	docker compose ps
 
 # --- Quality -----------------------------------------------------------------
 
@@ -136,6 +172,14 @@ format-all: ## One-shot: format the entire codebase (run once to adopt ruff form
 check: lint test ## Pre-PR gate: lint + tests (format-check is separate until the codebase is fully formatted)
 	@echo ""
 	@echo "  OK: lint clean, tests pass."
+
+pre-commit-install: ## Install git pre-commit hooks (ruff + format + check-env)
+	pip install pre-commit
+	pre-commit install
+	@echo "  Pre-commit hooks installed. Run 'pre-commit run --all-files' to check."
+
+pre-commit-run: ## Run all pre-commit hooks on all files
+	pre-commit run --all-files
 
 # --- Help --------------------------------------------------------------------
 

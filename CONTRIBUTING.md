@@ -97,6 +97,16 @@ make reset      # POST /admin/reset - clears flags, alerts, investigations, cool
 Clears every in-process store so a demo can re-run without restarting uvicorn.
 Does not touch SigNoz, Postgres, or the deployer.
 
+## Running the full demo
+
+```bash
+make demo-up    # bring up the full backend (cross-platform: works on Windows + Unix)
+make demo-ui    # start the demo Next.js UI (Flowdeck support + Agent K console)
+# or: make demo  # one command: backend then UI
+```
+
+See [`DEMO.md`](DEMO.md) for the full walkthrough of the four incidents.
+
 ## Set up the landing page (optional)
 
 ```bash
@@ -119,6 +129,8 @@ See [`landing/README.md`](landing/README.md) for the full landing page guide.
 | `make lint` | `ruff check .` |
 | `make format` | `ruff format .` (writes changes) |
 | `make check` | Lint + tests (pre-PR gate) |
+| `make check-env` | Validate .env (DEPLOYER_TOKEN, provider key, DB/SigNoz) |
+| `make pre-commit-install` | Install git pre-commit hooks (ruff + format + check-env) |
 
 Key conventions:
 
