@@ -15,19 +15,19 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### RAG Service (RAG)
 
-- [ ] **RAG-01**: A FastAPI `/ask` endpoint answers a support question by retrieving relevant docs from pgvector and generating an answer via the configured LLM provider
+- [x] **RAG-01**: A FastAPI `/ask` endpoint answers a support question by retrieving relevant docs from pgvector and generating an answer via the configured LLM provider
 - [x] **RAG-02**: A synthetic support-doc corpus (50-200 authored docs) is seeded into PostgreSQL+pgvector using local `sentence-transformers` embeddings (no external embedding API)
-- [ ] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
+- [x] **RAG-03**: Every LLM call in the RAG service (retrieval, prompt-construction, answer-generation steps) is instrumented with OpenTelemetry traces carrying GenAI semantic-convention attributes
 - [ ] **RAG-04**: The LLM client is a single OpenAI-compatible module that switches between Groq, Cerebras, and Gemini Flash via an environment variable, optionally routed through LiteLLM
 
 ### Failure Injection (FLAG)
 
-- [ ] **FLAG-01**: An in-process feature-flag service (admin HTTP endpoint / in-memory store) toggles each of the four seeded failure scenarios live, without restarting the app
-- [ ] **FLAG-02**: Toggling the prompt-regression scenario ships a broken prompt template and produces a rising failed-answer rate with a corresponding SigNoz deployment marker
-- [ ] **FLAG-03**: Toggling the retry-storm scenario lowers timeouts and causes repeated LLM calls, spiking cost/call-rate metrics past the configured cost SLO without necessarily raising HTTP error rate
-- [ ] **FLAG-04**: Toggling the retrieval-latency scenario injects artificial delay into the pgvector retrieval query, visibly slowing retrieval spans in the trace waterfall with no deployment-related cause
-- [ ] **FLAG-05**: Toggling the DB-pool-exhaustion scenario reduces configured DB connections, producing connection-pool-exhaustion errors in logs correlated to failed traces
-- [ ] **FLAG-06**: A SigNoz deployment marker is created for every version change, including flag-triggered "deployments" (scenarios 1 and 2), and is distinguishable from non-deployment flag toggles (scenarios 3 and 4)
+- [x] **FLAG-01**: An in-process feature-flag service (admin HTTP endpoint / in-memory store) toggles each of the four seeded failure scenarios live, without restarting the app
+- [x] **FLAG-02**: Toggling the prompt-regression scenario ships a broken prompt template and produces a rising failed-answer rate with a corresponding SigNoz deployment marker
+- [x] **FLAG-03**: Toggling the retry-storm scenario lowers timeouts and causes repeated LLM calls, spiking cost/call-rate metrics past the configured cost SLO without necessarily raising HTTP error rate
+- [x] **FLAG-04**: Toggling the retrieval-latency scenario injects artificial delay into the pgvector retrieval query, visibly slowing retrieval spans in the trace waterfall with no deployment-related cause
+- [x] **FLAG-05**: Toggling the DB-pool-exhaustion scenario reduces configured DB connections, producing connection-pool-exhaustion errors in logs correlated to failed traces
+- [x] **FLAG-06**: A SigNoz deployment marker is created for every version change, including flag-triggered "deployments" (scenarios 1 and 2), and is distinguishable from non-deployment flag toggles (scenarios 3 and 4)
 
 ### Dashboard & Alerts (DASH)
 
@@ -39,21 +39,21 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### SigNoz MCP Integration (MCP)
 
-- [ ] **MCP-01**: Agent K's Python process connects to the SigNoz MCP server via the official MCP Python SDK and successfully retrieves real evidence (a trace, log, or metric query result) end-to-end
-- [ ] **MCP-02**: Every MCP query Agent K issues routes through a single call-site wrapper that records the query as a span and hashes it for loop detection
+- [x] **MCP-01**: Agent K's Python process connects to the SigNoz MCP server via the official MCP Python SDK and successfully retrieves real evidence (a trace, log, or metric query result) end-to-end
+- [x] **MCP-02**: Every MCP query Agent K issues routes through a single call-site wrapper that records the query as a span and hashes it for loop detection
 
 ### Investigation Core (INV)
 
-- [ ] **INV-01**: Agent K receives a SigNoz alert via a webhook HTTP endpoint and starts an investigation in response
-- [ ] **INV-02**: Agent K's investigation is driven by a plain Python state machine (no agent framework) that queries SigNoz via MCP, forms one or more root-cause hypotheses, and reaches a terminal reported/escalated state
-- [ ] **INV-03**: Agent K attempts each of the four seeded incidents and produces at least one root-cause hypothesis per incident
+- [x] **INV-01**: Agent K receives a SigNoz alert via a webhook HTTP endpoint and starts an investigation in response
+- [x] **INV-02**: Agent K's investigation is driven by a plain Python state machine (no agent framework) that queries SigNoz via MCP, forms one or more root-cause hypotheses, and reaches a terminal reported/escalated state
+- [x] **INV-03**: Agent K attempts each of the four seeded incidents and produces at least one root-cause hypothesis per incident
 
 ### Law 1 — Evidence (LAW1)
 
-- [ ] **LAW1-01**: Every published claim carries claim text, a confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link (trace/log/metric/deployment)
-- [ ] **LAW1-02**: The report renderer strips any claim with an empty evidence list before it's shown — Agent K cannot publish an unsupported claim
-- [ ] **LAW1-03**: Confidence on each claim is hybrid-scored: the LLM proposes an initial value, then code recalibrates it based on evidence strength/count (deployment marker present, error-rate delta magnitude, etc.)
-- [ ] **LAW1-04**: Agent K creates span links between its investigation spans and the original incident traces, so a human can navigate from failure to agent reasoning in one click
+- [x] **LAW1-01**: Every published claim carries claim text, a confidence value, the SigNoz query used, the time range searched, and a resolvable evidence link (trace/log/metric/deployment)
+- [x] **LAW1-02**: The report renderer strips any claim with an empty evidence list before it's shown — Agent K cannot publish an unsupported claim
+- [x] **LAW1-03**: Confidence on each claim is hybrid-scored: the LLM proposes an initial value, then code recalibrates it based on evidence strength/count (deployment marker present, error-rate delta magnitude, etc.)
+- [x] **LAW1-04**: Agent K creates span links between its investigation spans and the original incident traces, so a human can navigate from failure to agent reasoning in one click
 - [ ] **LAW1-05**: An automated link checker run during evaluation confirms 100% of rendered evidence links resolve against the running SigNoz instance
 
 ### Law 2 — Action Policy (LAW2)
@@ -68,12 +68,12 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Law 3 — Self-Telemetry (LAW3)
 
-- [ ] **LAW3-01**: Every LLM call Agent K makes records input/output token counts and estimated cost as telemetry
-- [ ] **LAW3-02**: Investigation duration, MCP query count, query failures, and repeated-query count are recorded per investigation
-- [ ] **LAW3-03**: Hypothesis count and confidence per hypothesis are recorded per investigation
-- [ ] **LAW3-04**: The loop breaker hashes each MCP query, stops the investigation when the same query repeats past a configured threshold, records the loop event, fires a watchdog alert, marks the investigation incomplete, and escalates to a human with evidence collected so far
-- [ ] **LAW3-05**: The cost watchdog stops the investigation and reports incompletion if token/cost usage exceeds a configured budget mid-investigation
-- [ ] **LAW3-06**: At least one adversarial test forces the loop breaker to actually fire (not just exist unexercised in code)
+- [x] **LAW3-01**: Every LLM call Agent K makes records input/output token counts and estimated cost as telemetry
+- [x] **LAW3-02**: Investigation duration, MCP query count, query failures, and repeated-query count are recorded per investigation
+- [x] **LAW3-03**: Hypothesis count and confidence per hypothesis are recorded per investigation
+- [x] **LAW3-04**: The loop breaker hashes each MCP query, stops the investigation when the same query repeats past a configured threshold, records the loop event, fires a watchdog alert, marks the investigation incomplete, and escalates to a human with evidence collected so far
+- [x] **LAW3-05**: The cost watchdog stops the investigation and reports incompletion if token/cost usage exceeds a configured budget mid-investigation
+- [x] **LAW3-06**: At least one adversarial test forces the loop breaker to actually fire (not just exist unexercised in code)
 
 ### Incident Report (REPT)
 
@@ -90,7 +90,7 @@ Requirements for the hackathon submission (locked scope — no additions unless 
 
 ### Submission (SUB)
 
-- [ ] **SUB-01**: AI assistant usage (Claude Code) is disclosed in the final submission per hackathon rules
+- [x] **SUB-01**: AI assistant usage (Claude Code) is disclosed in the final submission per hackathon rules
 - [ ] **SUB-02**: The submission blog is written from the actual build log and includes screenshots/demo footage covering the 15-beat demo script
 
 ## v2 Requirements
@@ -124,22 +124,22 @@ Populated during roadmap creation.
 | TELE-01 | Phase 1 | Complete |
 | TELE-02 | Phase 1 | Complete |
 | TELE-03 | Phase 1 | Complete |
-| RAG-01 | Phase 2 | Reopened |
+| RAG-01 | Phase 2 | Complete (live: POST /ask 200 with grounded sources against real DB + Groq, 2026-07-25) |
 | RAG-02 | Phase 2 | Complete |
-| RAG-03 | Phase 2 | Reopened |
-| RAG-04 | Phase 2 | Needs human verification |
-| FLAG-01 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
-| FLAG-02 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
-| FLAG-03 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
-| FLAG-04 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
-| FLAG-05 | Phase 3 | Code complete (offline-tested; HV-2 for SigNoz visibility) |
-| FLAG-06 | Phase 3 | Code complete via deployment.marker span (offline-tested; HV-2 for SigNoz visibility) |
+| RAG-03 | Phase 2 | Complete (live: 2 live-DB integration tests now run and pass in-suite) |
+| RAG-04 | Phase 2 | Complete for Groq (live call verified 2026-07-25); Cerebras/Gemini switch still unproven |
+| FLAG-01 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
+| FLAG-02 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
+| FLAG-03 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
+| FLAG-04 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
+| FLAG-05 | Phase 3 | Complete (live: spans confirmed in SigNoz 2026-07-25) |
+| FLAG-06 | Phase 3 | Complete (live: deployment.marker spans queried back from SigNoz 2026-07-25) |
 | DASH-01 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
 | DASH-02 | Phase 3 | Pending — Plan 03-05 (SigNoz UI + JSON export, HV-2) |
 | DASH-03 | Phase 7 | Pending |
 | DASH-04 | Phase 7 | Pending |
 | DASH-05 | Phase 3 | Code half done (POST /alerts/webhook, offline-tested); SigNoz alert rule + channel = Plan 03-05 (HV-2) |
-| MCP-01 | Phase 4 | Code complete (offline-tested); live-server proof pending (no SigNoz MCP binary/stack in this env) |
+| MCP-01 | Phase 4 | Complete (live: signoz-mcp-server v0.9.0, 41 tools, real evidence returned 2026-07-25) |
 | MCP-02 | Phase 4 | Complete (offline-tested: single call-site, span + query hash on every call) |
 | INV-01 | Phase 5 | Complete (offline-tested: webhook schedules background investigation) |
 | INV-02 | Phase 5 | Complete (offline-tested: state machine reaches REPORTED/ESCALATED) |
@@ -148,7 +148,7 @@ Populated during roadmap creation.
 | LAW1-02 | Phase 5 | Complete (offline-tested: strip_unevidenced_claims) |
 | LAW1-03 | Phase 5 | Complete (offline-tested: recalibrate_confidence) |
 | LAW1-04 | Phase 5 | Code complete (offline-tested span links); real alert trace_id/span_id field convention needs live confirmation |
-| LAW1-05 | Phase 5 | Code complete (check_evidence_links.py, offline-tested via MockTransport); live 100%-resolve run pending (no SigNoz stack in this env) |
+| LAW1-05 | Phase 5 | Code complete; live check run 2026-07-25 caught a FABRICATED /deployments route (SPA returns 200 for any path, so status codes alone prove nothing) — route fixed, needs a re-run against fresh reports |
 | LAW2-01 | Phase 6 | Complete (offline-tested: 6 checks; zero-LLM proven by a runtime guard + an AST import check) |
 | LAW2-02 | Phase 6 | Complete (offline-tested: allowlist length asserted == 1) |
 | LAW2-03 | Phase 6 | Code complete (sidecar contract offline-tested: auth, 409 lock, force-recreate-never-restart, no caller-supplied image); live rollback pending — needs a containerized rag-app + 2 image tags (HV-3) |
@@ -169,7 +169,7 @@ Populated during roadmap creation.
 | EVAL-02 | Phase 7 | Pending |
 | EVAL-03 | Phase 7 | Pending |
 | EVAL-04 | Phase 7 | Pending |
-| SUB-01 | Phase 7 | Pending |
+| SUB-01 | Phase 7 | Complete (SUBMISSION.md disclosure written; closes fully on actual submission) |
 | SUB-02 | Phase 7 | Pending |
 
 **Coverage:**
