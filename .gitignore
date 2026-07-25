@@ -53,3 +53,9 @@ venv/
 
 # SigNoz MCP server binary (downloaded per-machine, see RUNNING-AGENT-K.md)
 signoz-mcp-server
+
+# Debug output from MCP setup
+login*.json
+resp*.json
+mcp-stderr.txt
+mcp-stdout.txt
