@@ -62,6 +62,17 @@ logger = logging.getLogger(__name__)
 
 # --- Configuration (all sidecar-owned; none of it is caller-supplied) ---
 COMPOSE_FILE = os.getenv("ROLLBACK_COMPOSE_FILE", "/workspace/docker-compose.yaml")
+# The compose PROJECT the running stack belongs to. This is load-bearing: compose
+# defaults the project name to the basename of the compose file's directory, which
+# inside this sidecar is `/workspace` -> "workspace". The stack it must re-create,
+# however, was brought up on the HOST from the repo directory, so it lives under a
+# different project (e.g. "agent-k"). Recreating under the wrong project makes
+# compose try to CREATE a fresh container on the service's fixed `container_name`,
+# which collides with the already-running one ("container name ... is already in
+# use") and the rollback fails with a compose exit 1. Passing the real project name
+# via `-p` makes the sidecar act on the EXISTING container instead of a phantom new
+# stack. Left blank => no `-p` (preserves the bare-argv behaviour the tests pin).
+COMPOSE_PROJECT = os.getenv("ROLLBACK_COMPOSE_PROJECT", "").strip()
 TARGET_SERVICE = os.getenv("ROLLBACK_TARGET_SERVICE", "rag-app")
 TARGET_CONTAINER = os.getenv("ROLLBACK_TARGET_CONTAINER", "rag-app")
 # The previous known-good image tag. The SIDECAR knows this; the caller never
@@ -152,9 +163,13 @@ async def _perform_rollback() -> RollbackResponse:
     _write_image_tag(KNOWN_GOOD_TAG)
 
     # Hardcoded. `up -d --force-recreate`, never `restart` (see module docstring).
-    argv = [
-        "docker",
-        "compose",
+    # `-p <project>` (when configured) pins the re-create to the SAME compose
+    # project the stack is already running under, so compose acts on the existing
+    # container rather than colliding with its fixed container_name.
+    argv = ["docker", "compose"]
+    if COMPOSE_PROJECT:
+        argv += ["-p", COMPOSE_PROJECT]
+    argv += [
         "-f",
         COMPOSE_FILE,
         "up",
