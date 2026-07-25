@@ -8,9 +8,11 @@ anti-pattern warning).
 """
 
 import logging
+import os
 
 import fastapi
 from fastapi import Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +34,23 @@ from app.telemetry import setup_telemetry
 
 # 1. Create the app.
 app = fastapi.FastAPI()
+
+# CORS - lets a browser-hosted frontend (e.g. the Vercel landing page) call
+# this API from a different origin. ALLOWED_ORIGINS is a comma-separated list;
+# unset/empty means "no cross-origin JS callers allowed" rather than silently
+# opening to "*", since this API is also reachable from the public internet.
+_allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+if _allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Apply any deliberately-seeded failure scenarios (AGENT_K_SEEDED_FLAGS). Empty in
 # every normal deployment; set only in the v2-broken demo image so the Law 2
