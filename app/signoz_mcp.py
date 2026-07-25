@@ -29,6 +29,7 @@ import hashlib
 import json
 import logging
 import os
+import shlex
 from datetime import timedelta
 from typing import Any
 
@@ -68,14 +69,28 @@ async def _call_tool_via_mcp(tool_name: str, arguments: dict[str, Any]) -> CallT
     stdio_client(StdioServerParameters(command=..., env={...})) client pattern.
     Never called anywhere except query_signoz() - kept as a separate function
     purely so tests can monkeypatch it without a real server.
+
+    SIGNOZ_MCP_ARGS (optional, whitespace-separated) supplies argv for the server
+    process. The default is no arguments, so the single-binary case is unchanged.
+    It exists because a server that is not a self-contained executable cannot be
+    launched by command alone - `python demo_mcp_server.py` needs two argv entries
+    - and shlex.split keeps quoted paths intact on both POSIX and Windows.
     """
     load_dotenv()
-    command = os.getenv("SIGNOZ_MCP_COMMAND", DEFAULT_MCP_COMMAND)
+    # `or`, not a getenv default: docker-compose's ${VAR:-} idiom sets the variable
+    # to an empty string rather than leaving it unset, and an empty command would
+    # reach StdioServerParameters as "" instead of falling back to the real binary.
+    command = os.getenv("SIGNOZ_MCP_COMMAND") or DEFAULT_MCP_COMMAND
+    args = shlex.split(os.getenv("SIGNOZ_MCP_ARGS") or "")
     server_params = StdioServerParameters(
         command=command,
+        args=args,
         env={
             "SIGNOZ_URL": os.getenv("SIGNOZ_URL", ""),
             "SIGNOZ_API_KEY": os.getenv("SIGNOZ_API_KEY", ""),
+            # The fixture server reads flag state from the app to decide which
+            # scenario's evidence to return; harmless for the real binary.
+            "DEMO_RAG_URL": os.getenv("DEMO_RAG_URL", ""),
         },
     )
     async with stdio_client(server_params) as (read_stream, write_stream):

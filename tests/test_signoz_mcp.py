@@ -132,3 +132,66 @@ async def test_query_signoz_marks_span_error_and_reraises_on_transport_failure(
     assert spans[0].attributes[AGENTK_MCP_QUERY_HASH] == signoz_mcp.compute_query_hash(
         "get_trace", {"trace_id": "t-2"}
     )
+
+
+# --- server-process configuration (SIGNOZ_MCP_COMMAND / SIGNOZ_MCP_ARGS) ---
+
+
+def _captured_params(monkeypatch):
+    """Run _call_tool_via_mcp far enough to capture the StdioServerParameters it
+    builds, without launching a subprocess."""
+    captured = {}
+
+    def fake_stdio_client(params):
+        captured["params"] = params
+        raise RuntimeError("stop here - we only wanted the params")
+
+    monkeypatch.setattr(signoz_mcp, "load_dotenv", lambda *a, **k: False)
+    monkeypatch.setattr(signoz_mcp, "stdio_client", fake_stdio_client)
+    return captured
+
+
+@pytest.mark.asyncio
+async def test_empty_command_env_falls_back_to_the_real_binary(monkeypatch):
+    """docker-compose's ${VAR:-} sets an EMPTY STRING, not an unset variable.
+
+    A getenv default would hand StdioServerParameters "" and try to exec nothing.
+    The fallback must treat empty as absent, or a stack that simply didn't
+    configure an MCP server would fail in a confusing place.
+    """
+    monkeypatch.setenv("SIGNOZ_MCP_COMMAND", "")
+    monkeypatch.setenv("SIGNOZ_MCP_ARGS", "")
+    captured = _captured_params(monkeypatch)
+
+    with pytest.raises(RuntimeError):
+        await signoz_mcp._call_tool_via_mcp("t", {})
+
+    assert captured["params"].command == signoz_mcp.DEFAULT_MCP_COMMAND
+    assert captured["params"].args == []
+
+
+@pytest.mark.asyncio
+async def test_command_and_args_are_read_from_env(monkeypatch):
+    """A server that isn't a self-contained executable needs argv."""
+    monkeypatch.setenv("SIGNOZ_MCP_COMMAND", "python")
+    monkeypatch.setenv("SIGNOZ_MCP_ARGS", "/srv/scripts/demo_mcp_server.py --verbose")
+    captured = _captured_params(monkeypatch)
+
+    with pytest.raises(RuntimeError):
+        await signoz_mcp._call_tool_via_mcp("t", {})
+
+    assert captured["params"].command == "python"
+    assert captured["params"].args == ["/srv/scripts/demo_mcp_server.py", "--verbose"]
+
+
+@pytest.mark.asyncio
+async def test_quoted_arg_paths_survive_splitting(monkeypatch):
+    """shlex.split, not str.split - a path with a space must stay one argv entry."""
+    monkeypatch.setenv("SIGNOZ_MCP_COMMAND", "python")
+    monkeypatch.setenv("SIGNOZ_MCP_ARGS", '"/opt/my server/fixture.py"')
+    captured = _captured_params(monkeypatch)
+
+    with pytest.raises(RuntimeError):
+        await signoz_mcp._call_tool_via_mcp("t", {})
+
+    assert captured["params"].args == ["/opt/my server/fixture.py"]

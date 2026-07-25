@@ -38,6 +38,12 @@ Thumbs.db
 # Foundry-generated output (regenerable via `foundryctl forge`)
 pours/
 
+# Machine-specific Compose overrides (e.g. remapping a host port that another
+# project already holds). Compose auto-loads this when present; teammates
+# without it get the defaults in docker-compose.yaml.
+docker-compose.override.yaml
+docker-compose.override.yml
+
 # Python
 __pycache__/
 *.pyc

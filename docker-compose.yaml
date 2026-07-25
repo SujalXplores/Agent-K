@@ -36,13 +36,26 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SIGNOZ_URL: ${SIGNOZ_URL:-http://host.docker.internal:8080}
       SIGNOZ_API_KEY: ${SIGNOZ_API_KEY:-}
+      # Which MCP server Agent K spawns for evidence. Empty defaults to the real
+      # ./signoz-mcp-server binary (app/signoz_mcp.py DEFAULT_MCP_COMMAND) - the
+      # fixture is never the default, so a misconfigured stack fails loudly
+      # rather than quietly serving hand-authored evidence. See DEMO.md.
+      SIGNOZ_MCP_COMMAND: ${SIGNOZ_MCP_COMMAND:-}
+      SIGNOZ_MCP_ARGS: ${SIGNOZ_MCP_ARGS:-}
+      DEMO_RAG_URL: ${DEMO_RAG_URL:-}
+      # Law 3 guardrail thresholds. Empty = the defaults in app/investigation.py;
+      # tightening one makes that guardrail genuinely fire (LAW3-04/05).
+      AGENT_K_LOOP_BREAKER_THRESHOLD: ${AGENT_K_LOOP_BREAKER_THRESHOLD:-}
+      AGENT_K_TOKEN_BUDGET: ${AGENT_K_TOKEN_BUDGET:-}
       DEPLOYER_URL: http://deployer:9000
       DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:?DEPLOYER_TOKEN must be set}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
       OTEL_SERVICE_NAME: agent-k-rag-service
       # Empty in v1-good. The v2-broken image is this same image run with
       # AGENT_K_SEEDED_FLAGS=prompt_regression - see Dockerfile.
@@ -74,6 +87,7 @@ services:
       ROLLBACK_KNOWN_GOOD_TAG: ${ROLLBACK_KNOWN_GOOD_TAG:-v1-good}
       ROLLBACK_IMAGE_TAG_ENV_FILE: /workspace/.env.deploy
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
       OTEL_SERVICE_NAME: agent-k-deployer
 
 volumes:

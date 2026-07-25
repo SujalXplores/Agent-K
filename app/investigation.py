@@ -9,7 +9,7 @@ through app.signoz_mcp.query_signoz (the single call site from Phase 4) and form
 one hypothesis via app.llm.generate (the single LLM client from Phase 2), then
 either stops (confident enough / evidence exhausted) or continues. Every MCP query
 is hashed (signoz_mcp.compute_query_hash) and counted per investigation; if the
-identical query repeats past LOOP_BREAKER_REPEAT_THRESHOLD, the loop breaker stops
+identical query repeats past loop_breaker_threshold(), the loop breaker stops
 the investigation, records the event, and escalates with whatever partial evidence
 was collected (LAW3-04). Evidence-gathering queries deliberately differ across
 iterations (EVIDENCE_QUERY_PLAN) under normal operation, so the loop breaker only
@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -241,9 +242,37 @@ EVIDENCE_QUERY_PLAN: list[tuple[str, str, Callable[[str, dict], dict]]] = [
 MAX_ITERATIONS = len(EVIDENCE_QUERY_PLAN)
 
 
-LOOP_BREAKER_REPEAT_THRESHOLD = 3  # same query hash seen more than this many times -> stop
-TOKEN_BUDGET = 20_000  # total input+output tokens per investigation (see cost-watchdog note above)
+DEFAULT_LOOP_BREAKER_REPEAT_THRESHOLD = 3  # same query hash seen more than this many times -> stop
+DEFAULT_TOKEN_BUDGET = 20_000  # total input+output tokens per investigation (see cost-watchdog note above)
 CONFIDENCE_STOP_THRESHOLD = 0.75  # stop iterating once a hypothesis is this confident
+
+
+def loop_breaker_threshold() -> int:
+    """The loop-breaker repeat threshold, overridable via env (LAW3-04).
+
+    Read at call time rather than captured at import so a demo can tighten the
+    threshold and watch the guardrail genuinely fire, on this same code path,
+    without a rebuild. The guardrail itself is unchanged - only the number it
+    compares against moves. An unparseable value falls back to the default
+    rather than raising: a malformed demo env var must not be able to disable a
+    safety guardrail.
+    """
+    try:
+        return int(os.environ["AGENT_K_LOOP_BREAKER_THRESHOLD"])
+    except (KeyError, ValueError):
+        return DEFAULT_LOOP_BREAKER_REPEAT_THRESHOLD
+
+
+def token_budget() -> int:
+    """The per-investigation token budget, overridable via env (LAW3-05).
+
+    Same rationale as loop_breaker_threshold(): setting this low makes the cost
+    watchdog fire for real instead of being asserted only in tests.
+    """
+    try:
+        return int(os.environ["AGENT_K_TOKEN_BUDGET"])
+    except (KeyError, ValueError):
+        return DEFAULT_TOKEN_BUDGET
 
 # The confidence stop cannot fire before this many evidence queries have run.
 # Without it the first hypothesis almost always ends the investigation: the model
@@ -373,7 +402,7 @@ def _record_mcp_query_and_check_loop(inv: Investigation, tool_name: str, argumen
     loop-breaker threshold was just exceeded (caller must stop), else None."""
     query_hash = signoz_mcp.compute_query_hash(tool_name, arguments)
     inv.query_hash_counts[query_hash] = inv.query_hash_counts.get(query_hash, 0) + 1
-    if inv.query_hash_counts[query_hash] > LOOP_BREAKER_REPEAT_THRESHOLD:
+    if inv.query_hash_counts[query_hash] > loop_breaker_threshold():
         return query_hash
     return None
 
@@ -400,15 +429,16 @@ def _fire_cost_watchdog(inv: Investigation) -> None:
     inv.state = InvestigationState.ESCALATED
     inv.incomplete = True
     inv.cost_watchdog_fired = True
+    budget = token_budget()
     inv.watchdog_events.append(
-        {"kind": "cost_budget", "total_tokens": inv.total_tokens, "budget": TOKEN_BUDGET}
+        {"kind": "cost_budget", "total_tokens": inv.total_tokens, "budget": budget}
     )
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("agentk.watchdog.cost_budget") as span:
         span.set_attribute(AGENTK_WATCHDOG_KIND, "cost_budget")
         span.set_attribute(AGENTK_WATCHDOG_TOTAL_TOKENS, inv.total_tokens)
-        span.set_attribute(AGENTK_WATCHDOG_BUDGET, TOKEN_BUDGET)
-    logger.error("cost watchdog fired: total_tokens=%d budget=%d", inv.total_tokens, TOKEN_BUDGET)
+        span.set_attribute(AGENTK_WATCHDOG_BUDGET, budget)
+    logger.error("cost watchdog fired: total_tokens=%d budget=%d", inv.total_tokens, budget)
 
 
 def _parse_iso_to_ms(value: str | None) -> int | None:
@@ -556,7 +586,7 @@ async def _form_hypothesis(inv: Investigation, alert: AlertItem, evidence: list[
         span.set_attribute(AGENTK_HYPOTHESIS_CONFIDENCE, confidence)
         span.set_attribute(AGENTK_HYPOTHESIS_LLM_CONFIDENCE, llm_confidence)
 
-    if inv.total_tokens > TOKEN_BUDGET:
+    if inv.total_tokens > token_budget():
         _fire_cost_watchdog(inv)
 
     return claim
