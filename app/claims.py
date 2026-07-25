@@ -36,6 +36,14 @@ PER_EVIDENCE_ITEM_BOOST = 0.05
 MAX_EVIDENCE_ITEMS_COUNTED = 4  # boost caps out past this many corroborating items
 ERROR_RATE_DELTA_BOOST_SCALE = 0.20  # full boost at delta >= 1.0 (i.e. +100pp)
 
+# Recalibration may raise confidence, but never to certainty. A first live run
+# produced a rendered "Confidence 100%" claim - the model proposed 0.9 and the
+# boosts clamped to 1.0 - on a diagnosis that was in fact WRONG. No finite set of
+# correlational evidence justifies claiming certainty about a root cause, and a
+# system whose entire pitch is calibrated, evidence-backed honesty is damaged more
+# by one overconfident claim than by a hundred appropriately hedged ones.
+MAX_RECALIBRATED_CONFIDENCE = 0.95
+
 
 class Evidence(BaseModel):
     """One resolvable piece of SigNoz evidence backing a claim (LAW1-01)."""
@@ -91,7 +99,7 @@ def recalibrate_confidence(
     if error_rate_delta is not None:
         confidence += min(max(error_rate_delta, 0.0), 1.0) * ERROR_RATE_DELTA_BOOST_SCALE
 
-    return max(0.0, min(1.0, confidence))
+    return max(0.0, min(MAX_RECALIBRATED_CONFIDENCE, confidence))
 
 
 def build_evidence_link(evidence_type: str, ref: str, time_range: str) -> str:

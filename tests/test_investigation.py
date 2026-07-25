@@ -142,7 +142,12 @@ async def test_run_investigation_stops_early_on_high_confidence(monkeypatch):
 
     inv = await inv_module.run_investigation(_alert())
 
-    assert inv.mcp_query_count == 1  # stopped after the first iteration
+    # Stops as soon as it is allowed to, but NOT before MIN_EVIDENCE_ITERATIONS.
+    # A 0.95-confidence answer drawn from one query is not a finished
+    # investigation - it has not yet looked at the deployment marker that decides
+    # the deployment_related policy check.
+    assert inv.mcp_query_count == inv_module.MIN_EVIDENCE_ITERATIONS
+    assert inv.mcp_query_count < inv_module.MAX_ITERATIONS
 
 
 # --- loop breaker (LAW3-04/06) ---
@@ -433,7 +438,12 @@ def test_evidence_plan_uses_real_signoz_mcp_tool_names():
     nothing pointed at the cause. This test makes that failure loud.
     """
     names = [tool for tool, _, _ in inv_module.EVIDENCE_QUERY_PLAN]
-    assert names == ["signoz_search_traces", "signoz_search_logs", "signoz_aggregate_traces"]
+    assert names == [
+        "signoz_search_traces",     # error spans - the symptom
+        "signoz_aggregate_traces",  # deployment.marker grouped by scenario - the cause
+        "signoz_search_logs",
+        "signoz_aggregate_traces",
+    ]
     assert all(name.startswith("signoz_") for name in names)
 
 

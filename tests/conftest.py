@@ -5,8 +5,16 @@ a FastAPI TestClient fixture (client) with get_session overridden, so
 tests/test_rag.py and tests/test_ask.py never touch a real database.
 """
 
+import os
 import sys
 from unittest.mock import AsyncMock, MagicMock
+
+# MUST run before anything imports app.main (which calls setup_telemetry at import
+# time). Without it, every span the test suite produces is exported to the real
+# SigNoz, and Agent K then investigates its own test noise as if it were incident
+# evidence - which is exactly how a live run came to misdiagnose an incident from
+# deployment markers pytest had emitted. See app/telemetry.py's note.
+os.environ["AGENT_K_DISABLE_OTLP_EXPORT"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient

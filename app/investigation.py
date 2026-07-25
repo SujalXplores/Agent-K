@@ -73,6 +73,7 @@ from app.observability import (
     AGENTK_WATCHDOG_QUERY_HASH,
     AGENTK_WATCHDOG_REPEAT_COUNT,
     AGENTK_WATCHDOG_TOTAL_TOKENS,
+    DEPLOYMENT_MARKER_SCENARIO,
 )
 
 if TYPE_CHECKING:
@@ -91,12 +92,89 @@ SIGNOZ_TRACES_TOOL = "signoz_search_traces"
 SIGNOZ_LOGS_TOOL = "signoz_search_logs"
 SIGNOZ_TRACE_STATS_TOOL = "signoz_aggregate_traces"
 
-EVIDENCE_ROW_LIMIT = 20  # enough context for a hypothesis, small enough to stay in the prompt
+# Sized against Groq's free tier, which is the binding constraint: 6000 tokens per
+# minute, and one investigation makes up to MAX_ITERATIONS LLM calls inside a few
+# seconds. A 20-row trace search alone measured 8424 tokens on 2026-07-25 and was
+# rejected with HTTP 413 before any hypothesis could be formed.
+# The span attribute FLAG-06's marker carries the scenario name in. Imported from
+# app/observability.py rather than written inline (D-06), so the query Agent K
+# groups by can never drift from the attribute the emitter actually sets.
+DEPLOYMENT_SCENARIO_FIELD = DEPLOYMENT_MARKER_SCENARIO
+
+EVIDENCE_ROW_LIMIT = 5
+MAX_EVIDENCE_CHARS = 4000  # per iteration, after null-stripping
 DEFAULT_TIME_RANGE = "1h"  # relative fallback when the alert carries no usable window
 
 
+def _strip_nulls(node):
+    """Drop null-valued keys from a decoded MCP payload.
+
+    SigNoz returns every possible span attribute per row, and for this app the vast
+    majority are null (k8s.*, cloud.*, db.*, http.* on non-HTTP spans). They are
+    pure token cost with zero diagnostic signal, so removing them shrinks the
+    prompt by roughly an order of magnitude WITHOUT discarding anything the model
+    could have reasoned from - which blind truncation cannot promise.
+    """
+    if isinstance(node, dict):
+        return {k: _strip_nulls(v) for k, v in node.items() if v is not None}
+    if isinstance(node, list):
+        return [_strip_nulls(item) for item in node]
+    return node
+
+
+def compact_evidence(text: str) -> str:
+    """Shrink one tool result to something that fits in a free-tier prompt.
+
+    Null-strips when the payload is JSON, then hard-caps the length. The cap is a
+    visible marker, never a silent cut: a truncated payload the model reasons over
+    must be identifiable as truncated when auditing why a claim was made.
+
+    Only the LLM PROMPT is affected. Law 1 publishes the query and the evidence
+    link, never this raw content, so compaction cannot weaken an evidence trail -
+    the link still resolves to the complete data in SigNoz.
+    """
+    try:
+        start, end = text.index("{"), text.rindex("}") + 1
+        compacted = json.dumps(_strip_nulls(json.loads(text[start:end])), separators=(",", ":"))
+    except (ValueError, json.JSONDecodeError):
+        compacted = text
+
+    if len(compacted) <= MAX_EVIDENCE_CHARS:
+        return compacted
+    dropped = len(compacted) - MAX_EVIDENCE_CHARS
+    return f"{compacted[:MAX_EVIDENCE_CHARS]}\n...[truncated {dropped} chars of evidence]"
+
+
 def _trace_search_args(service: str, time_args: dict) -> dict:
-    return {"service": service, "limit": EVIDENCE_ROW_LIMIT, **time_args}
+    """Error spans - the symptom. `error=true` focuses the sample on failures
+    rather than spending the row budget on healthy traffic."""
+    return {"service": service, "error": "true", "limit": EVIDENCE_ROW_LIMIT, **time_args}
+
+
+def _deployment_marker_args(service: str, time_args: dict) -> dict:
+    """deployment.marker spans grouped BY SCENARIO - the CAUSE signal.
+
+    Aggregated rather than searched, because signoz_search_traces returns only
+    canonical span columns and drops custom attributes: a raw marker row shows
+    `name: deployment.marker` but NOT which scenario it marks. The first live run
+    proved the cost of that - the model could see markers existed, had no way to
+    tell prompt_regression from retry_storm, and guessed wrong. Grouping by the
+    attribute returns the scenario NAMES:
+
+        [["retry_storm", 24], ["prompt_regression", 3]]
+
+    Its ABSENCE is as informative as its presence: FLAG-06 emits a marker only for
+    prompt_regression and retry_storm, so no marker in the incident window is
+    positive evidence that the cause was NOT a deployment - exactly the distinction
+    Law 2's deployment_related check turns on.
+    """
+    return {
+        "aggregation": "count",
+        "groupBy": DEPLOYMENT_SCENARIO_FIELD,
+        "operation": "deployment.marker",
+        "service": service,
+        **time_args,
+    }
 
 
 def _log_search_args(service: str, time_args: dict) -> dict:
@@ -119,6 +197,7 @@ def _trace_stats_args(service: str, time_args: dict) -> dict:
 # so the loop never has to clamp/reuse an earlier entry.
 EVIDENCE_QUERY_PLAN: list[tuple[str, str, Callable[[str, dict], dict]]] = [
     (SIGNOZ_TRACES_TOOL, "trace", _trace_search_args),
+    (SIGNOZ_TRACE_STATS_TOOL, "deployment", _deployment_marker_args),
     (SIGNOZ_LOGS_TOOL, "log", _log_search_args),
     (SIGNOZ_TRACE_STATS_TOOL, "metric", _trace_stats_args),
 ]
@@ -128,6 +207,14 @@ LOOP_BREAKER_REPEAT_THRESHOLD = 3  # same query hash seen more than this many ti
 TOKEN_BUDGET = 20_000  # total input+output tokens per investigation (see cost-watchdog note above)
 CONFIDENCE_STOP_THRESHOLD = 0.75  # stop iterating once a hypothesis is this confident
 
+# The confidence stop cannot fire before this many evidence queries have run.
+# Without it the first hypothesis almost always ends the investigation: the model
+# readily returns 0.9+, which clears the stop threshold on iteration 1. The first
+# live run did exactly that - one trace query, then done, having never looked at
+# the deployment marker that decides the deployment_related policy check. A
+# confident answer drawn from one query is not a completed investigation.
+MIN_EVIDENCE_ITERATIONS = 2
+
 # Known incident vocabulary - matches app.flags.FLAG_NAMES exactly (Phase 3's four
 # seeded scenarios), given to the LLM so it can name a scenario rather than
 # inventing free-form root causes.
@@ -135,11 +222,19 @@ KNOWN_INCIDENT_TYPES = ("prompt_regression", "retry_storm", "retrieval_latency",
 
 INVESTIGATION_SYSTEM_PROMPT = (
     "You are Agent K, an automated incident-response investigator. You are given "
-    "SigNoz evidence (traces/logs/metrics) gathered for a firing alert. Identify the "
-    "most likely root cause from this list of known failure scenarios: "
-    f"{', '.join(KNOWN_INCIDENT_TYPES)} - or 'unknown' if the evidence does not "
-    "clearly match one of these. Respond with ONLY a JSON object of the exact shape "
-    '{"claim": "<one sentence root-cause claim>", "confidence": <0.0-1.0>}.'
+    "SigNoz evidence (traces/logs/metrics) gathered for a firing alert.\n\n"
+    "Identify the most likely root cause. It MUST be one of these known failure "
+    f"scenarios: {', '.join(KNOWN_INCIDENT_TYPES)} - or 'unknown' if the evidence "
+    "does not clearly match one.\n\n"
+    "Your claim sentence MUST begin with the scenario name exactly as written above "
+    "(or 'unknown'), then explain. A claim that does not start with one of those "
+    "exact names cannot be acted on and will be discarded.\n\n"
+    "A deployment.marker span in the evidence is strong support for a "
+    "deployment-class cause (prompt_regression or retry_storm); its absence is "
+    "evidence AGAINST one. Do not diagnose a scenario the evidence does not show, "
+    "and prefer 'unknown' over a confident guess.\n\n"
+    "Respond with ONLY a JSON object of the exact shape "
+    '{"claim": "<scenario_name>: <one sentence explanation>", "confidence": <0.0-1.0>}.'
 )
 
 
@@ -340,7 +435,7 @@ async def _gather_evidence(inv: Investigation, alert: AlertItem, iteration: int)
         return []
 
     content_text = "\n".join(getattr(block, "text", "") for block in result.content)
-    inv.last_evidence_text.append(content_text)
+    inv.last_evidence_text.append(compact_evidence(content_text))
     # Prefer SigNoz's own deep link over a hand-built one (see extract_web_url).
     link = extract_web_url(content_text) or build_evidence_link(ev_type, service, time_range)
     return [
@@ -503,7 +598,11 @@ async def run_investigation(alert: AlertItem) -> Investigation:
                     inv.claims.append(hypothesis)
                 if inv.cost_watchdog_fired:
                     break
-                if hypothesis is not None and hypothesis.confidence >= CONFIDENCE_STOP_THRESHOLD:
+                if (
+                    hypothesis is not None
+                    and iteration + 1 >= MIN_EVIDENCE_ITERATIONS
+                    and hypothesis.confidence >= CONFIDENCE_STOP_THRESHOLD
+                ):
                     break
         except Exception:
             logger.exception("investigation failed unexpectedly")

@@ -7,6 +7,7 @@ from __future__ import annotations
 import pytest
 
 from app.claims import (
+    MAX_RECALIBRATED_CONFIDENCE,
     Claim,
     Evidence,
     build_evidence_link,
@@ -76,8 +77,20 @@ def test_recalibrate_error_rate_delta_scales_boost():
     assert none < small < large
 
 
-def test_recalibrate_clamps_to_zero_one():
-    assert recalibrate_confidence(0.99, evidence=_evidence(10), deployment_marker_present=True) == 1.0
+def test_recalibrate_never_reaches_certainty():
+    """Boosts may raise confidence but must never render as 100%.
+
+    A live run produced a "Confidence 100%" claim whose diagnosis was WRONG. No
+    finite set of correlational evidence justifies certainty about a root cause,
+    and one overconfident claim damages an evidence-backed system more than many
+    appropriately hedged ones.
+    """
+    maxed = recalibrate_confidence(0.99, evidence=_evidence(10), deployment_marker_present=True)
+    assert maxed == MAX_RECALIBRATED_CONFIDENCE
+    assert maxed < 1.0
+
+
+def test_recalibrate_clamps_to_zero_at_the_bottom():
     assert recalibrate_confidence(0.0, evidence=[]) == 0.0
 
 
