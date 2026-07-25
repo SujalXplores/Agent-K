@@ -30,15 +30,12 @@ import argparse
 import asyncio
 import datetime as dt
 import json
-import sys
 import time
 from pathlib import Path
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from app.flags import DEPLOYMENT_CLASS_FLAGS, FLAG_NAMES  # noqa: E402
+from app.flags import DEPLOYMENT_CLASS_FLAGS, FLAG_NAMES
 
 APP = "http://localhost:8000"
 OUT = Path(__file__).resolve().parent.parent / "evals"
@@ -81,7 +78,7 @@ async def generate_traffic(client: httpx.AsyncClient) -> None:
 
 
 async def fire_alert(client: httpx.AsyncClient, scenario: str) -> None:
-    starts = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=ALERT_WINDOW_MIN)
+    starts = dt.datetime.now(dt.UTC) - dt.timedelta(minutes=ALERT_WINDOW_MIN)
     await client.post(
         f"{APP}/alerts/webhook",
         json={

@@ -44,10 +44,11 @@ import os
 import re
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from opentelemetry import trace
 from opentelemetry.trace import Link, SpanContext, TraceFlags
@@ -56,7 +57,13 @@ from app import llm as llm_module
 from app import policy as policy_module
 from app import rollback as rollback_module
 from app import signoz_mcp
-from app.claims import Claim, Evidence, build_evidence_link, recalibrate_confidence, strip_unevidenced_claims
+from app.claims import (
+    Claim,
+    Evidence,
+    build_evidence_link,
+    recalibrate_confidence,
+    strip_unevidenced_claims,
+)
 from app.flags import FLAG_NAMES
 from app.observability import (
     AGENTK_HYPOTHESIS_CONFIDENCE,
@@ -450,7 +457,7 @@ def _parse_iso_to_ms(value: str | None) -> int | None:
     except (AttributeError, ValueError):
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return int(parsed.timestamp() * 1000)
 
 

@@ -17,11 +17,11 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import alerts_webhook
-from app import flags
+from app import alerts_webhook, flags, report
+from app import investigation as investigation_module
 from app import llm as llm_module
+from app import policy as policy_module
 from app import rag as rag_module
-from app import report
 from app.db import get_session, setup_db_instrumentation
 from app.schemas import (
     AskRequest,
@@ -122,6 +122,52 @@ async def set_flags(
 @app.get("/admin/flags", response_model=FlagStateResponse)
 async def get_flags() -> FlagStateResponse:
     return FlagStateResponse(flags=flags.get_all())
+
+
+@app.post("/admin/reset")
+async def reset_demo_state(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict:
+    """Clear every in-process demo store so a demo can re-run without a restart.
+
+    Resets, in one call:
+      * failure-injection flags (app.flags.reset_all) -> all OFF
+      * persisted alerts (app.alerts_webhook.clear_alerts) -> empty
+      * investigations (app.investigation.clear_investigations) -> empty
+      * Law 2 cooldown ledger (app.policy.clear_cooldowns) -> empty
+
+    Token-gated exactly like POST /admin/flags: open when ADMIN_TOKEN is unset
+    (local-demo convenience), constant-time compared when set. Does NOT touch
+    SigNoz, Postgres, or the deployer - only this process's in-memory state -
+    so a reset is always safe and always fast (sub-millisecond).
+
+    Returns a count per store so the caller can confirm what was cleared.
+    """
+    if not flags.token_matches(x_admin_token):
+        raise fastapi.HTTPException(status_code=401, detail="invalid admin token")
+
+    alert_count = len(alerts_webhook.get_alerts())
+    investigation_count = len(investigation_module.list_investigations())
+
+    flags.reset_all()
+    alerts_webhook.clear_alerts()
+    investigation_module.clear_investigations()
+    policy_module.clear_cooldowns()
+
+    logging.getLogger(__name__).info(
+        "demo state reset: cleared %d alerts, %d investigations, all flags, all cooldowns",
+        alert_count,
+        investigation_count,
+    )
+    return {
+        "reset": True,
+        "cleared": {
+            "alerts": alert_count,
+            "investigations": investigation_count,
+            "flags": "all_off",
+            "cooldowns": "cleared",
+        },
+    }
 
 
 # Inbound SigNoz alert webhook (DASH-05). Included here in step 2 - BEFORE

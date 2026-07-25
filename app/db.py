@@ -90,7 +90,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         await asyncio.wait_for(
             _pool_exhaustion_semaphore.acquire(), timeout=POOL_ACQUIRE_TIMEOUT_S
         )
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.error("simulated DB pool exhaustion: checkout timed out")
         trace.get_current_span().set_attribute(AGENTK_DB_POOL_EXHAUSTED, True)
         raise TimeoutError("simulated DB pool exhaustion") from exc

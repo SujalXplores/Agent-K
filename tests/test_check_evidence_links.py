@@ -13,8 +13,10 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_evidence_links import check_links, collect_links_from_investigations  # noqa: E402
-
+from scripts.check_evidence_links import (  # noqa: E402
+    check_links,
+    collect_links_from_investigations,
+)
 
 _REAL_CLIENT = httpx.Client
 

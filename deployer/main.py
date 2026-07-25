@@ -119,7 +119,7 @@ async def _run(argv: list[str]) -> tuple[int, str, str]:
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=SUBPROCESS_TIMEOUT_S)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         raise
     return proc.returncode or 0, stdout.decode(errors="replace"), stderr.decode(errors="replace")
@@ -137,7 +137,7 @@ async def capture_current_image() -> str | None:
         code, out, err = await _run(
             ["docker", "inspect", "--format", "{{.Config.Image}}", TARGET_CONTAINER]
         )
-    except (asyncio.TimeoutError, FileNotFoundError, OSError):
+    except (TimeoutError, FileNotFoundError, OSError):
         logger.exception("could not inspect target container")
         return None
     if code != 0:
@@ -179,7 +179,7 @@ async def _perform_rollback() -> RollbackResponse:
     ]
     try:
         code, _out, err = await _run(argv)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("rollback timed out after %.0fs", SUBPROCESS_TIMEOUT_S)
         raise HTTPException(status_code=504, detail="rollback timed out") from None
 

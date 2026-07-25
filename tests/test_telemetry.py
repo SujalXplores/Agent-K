@@ -10,8 +10,6 @@ from opentelemetry import trace
 
 from app import telemetry
 
-
-
 # --- OTLP export suppression (test-noise containment) ---
 
 

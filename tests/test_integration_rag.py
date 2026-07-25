@@ -173,7 +173,7 @@ def test_ask_emits_db_span_and_three_genai_spans_in_production(tmp_path):
     # keyword, so assert on scope rather than only the name.
     assert any(
         scope == "opentelemetry.instrumentation.sqlalchemy" and name.upper().startswith("SELECT")
-        for name, scope in zip(names, scopes)
+        for name, scope in zip(names, scopes, strict=False)
     )
 
     assert "opentelemetry.instrumentation.fastapi" in scopes

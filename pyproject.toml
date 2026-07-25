@@ -1,0 +1,177 @@
+# Agent K - Python project + tool configuration.
+#
+# This file is the single source of truth for:
+#   - project metadata + dependencies (replaces requirements.txt as the source;
+#     requirements.txt is kept as a `pip install -r` shim for teammates who skip
+#     reading this header - it is generated from [project.dependencies])
+#   - ruff lint/format config (replaces the absent ruff.toml / [tool.ruff] block)
+#   - pytest config (replaces the empty pytest.ini/ directory, which never held
+#     any config and only worked because conftest.py registered the `integration`
+#     marker at runtime)
+#   - coverage config
+#
+# Install for development:  pip install -e ".[dev]"
+# Install for production:   pip install .
+# Install from requirements.txt (legacy):  pip install -r requirements.txt
+#
+# The `app` and `deployer` packages are declared as packages here so an editable
+# install puts them on sys.path - which is what lets every script in scripts/
+# drop its `sys.path.insert(0, ...)` shim (see DX plan Tier 1.7).
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-k"
+version = "0.1.0"
+description = "Code-enforced incident-response agent for a FastAPI RAG support-answering service."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Agent K team" }]
+
+# Runtime dependencies. Mirrors requirements.txt exactly - keep these two in
+# sync when adding/upgrading a runtime dep. `httpx` and `jinja2` are pinned
+# explicitly even though they are transitive deps, because app/rollback.py and
+# app/report.py import them directly.
+dependencies = [
+  "fastapi==0.139.2",
+  "uvicorn[standard]==0.51.0",
+  "python-dotenv==1.2.2",
+  "opentelemetry-api==1.44.0",
+  "opentelemetry-sdk==1.44.0",
+  "opentelemetry-exporter-otlp-proto-http==1.44.0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-instrumentation-logging==0.65b0",
+  "opentelemetry-instrumentation-sqlalchemy==0.65b0",
+  "sqlalchemy==2.0.51",
+  "greenlet==3.5.4",
+  "asyncpg==0.31.0",
+  "pgvector==0.5.0",
+  "alembic==1.18.5",
+  "sentence-transformers==5.6.0",
+  "openai==2.46.0",
+  "httpx>=0.27",
+  "jinja2==3.1.6",
+  "mcp==1.28.1",
+]
+
+[project.optional-dependencies]
+# Dev-only tooling. Install with: pip install -e ".[dev]"
+# ruff is the single lint+format tool (replaces flake8+black+isort per CLAUDE.md).
+# pytest-asyncio is pinned to a compatible release; asyncio_mode=auto is set below.
+dev = [
+  "ruff==0.6.9",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=5.0",
+]
+
+[tool.setuptools]
+# Explicit package list - setuptools cannot auto-discover `app` and `deployer`
+# cleanly because both have empty __init__.py and the repo root also holds
+# unrelated top-level dirs (data/, scripts/, tests/, landing/, demo/).
+packages = ["app", "deployer"]
+
+[tool.ruff]
+# Lint + format config. Line length 100 matches the existing codebase's
+# prevailing width (verified by scanning app/*.py - no lines exceed 100
+# outside of long URL/string literals, which ruff leaves untouched).
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "landing/",
+  "demo/",
+  "pours/",
+  ".venv/",
+  "build/",
+  "dist/",
+]
+
+[tool.ruff.lint]
+# Rule selection rationale:
+#   E  - pycodestyle errors (PEP 8)
+#   F  - pyflakes (unused imports, undefined names)
+#   I  - isort (import ordering - replaces standalone isort)
+#   UP - pyupgrade (modernize syntax for py311+)
+#   B  - bugbear (common bug patterns)
+#   SIM - simplify (redundant/verbose code)
+#   T20- flake8-print (catch stray print() left in production code)
+select = ["E", "F", "I", "UP", "B", "SIM", "T20"]
+ignore = [
+  # E501: line too long. ruff format handles wrapping; flagging long lines
+  # that format can't shorten (long URLs, strings) is noise.
+  "E501",
+  # B008: function call in default argument. FastAPI's `Depends()` and
+  # `Header()` patterns are exactly this - a false positive for this codebase.
+  "B008",
+  # SIM117: nested `with` statements. Often more readable than a combined
+  # `with` when the two contexts are unrelated, and combining can change
+  # exception semantics in subtle ways.
+  "SIM117",
+  # SIM115: use context manager for opening files. Flags legitimate one-shot
+  # reads (e.g. ast.parse(open(path).read())) where a `with` block adds
+  # indentation for no safety gain on a short-lived process.
+  "SIM115",
+  # SIM105: use contextlib.suppress. `try/except/pass` is sometimes clearer
+  # about what is being swallowed than a suppress(Exception).
+  "SIM105",
+  # UP038: use `X | Y` in isinstance call. Requires Python 3.10+ at runtime
+  # for the isinstance arg, and the tuple form is still more readable for
+  # multi-type checks.
+  "UP038",
+  # UP031: use format specifiers instead of percent format. The % format is
+  # used in a few logging/script contexts where it is idiomatic and changing
+  # it is pure churn.
+  "UP031",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use assert liberally (S101) and often need to set module-level state
+# before imports (E402) to control OTel provider registration order - see
+# tests/conftest.py's AGENT_K_DISABLE_OTLP_EXPORT note.
+"tests/**/*.py" = ["S101", "E402"]
+# Scripts are CLI entry points where print() is the intended output channel.
+"scripts/**/*.py" = ["T20", "E402"]
+
+[tool.ruff.format]
+# Match black's defaults closely; the codebase was never black-formatted but
+# is close enough that these settings produce minimal diff noise.
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+# Replaces the empty pytest.ini/ directory. The `integration` marker was
+# previously registered at runtime in conftest.py::pytest_configure - it is
+# now declared here so `pytest --markers` lists it and `--strict-markers`
+# catches a typo'd marker name at collection time.
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --tb=short"
+markers = [
+  "integration: requires the live rag-postgres container seeded by scripts/seed_corpus.py (see tests/test_integration_rag.py)",
+]
+
+[tool.coverage.run]
+# Measure coverage of the application package only. deployer/ is a separate
+# sidecar with its own minimal surface; scripts/ are one-shot CLIs.
+source = ["app"]
+branch = true
+omit = [
+  "app/__init__.py",
+  "tests/*",
+]
+
+[tool.coverage.report]
+# Fail the `make coverage` target if application coverage drops below this.
+# 80 is a starting floor - raise it as the suite matures.
+fail_under = 80
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]

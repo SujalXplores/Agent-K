@@ -1,0 +1,43 @@
+# Pre-commit hooks for Agent K.
+#
+# Install:  pre-commit install
+# Run all:  pre-commit run --all-files
+#
+# Hooks:
+#   - ruff check --fix  : lint + auto-fix import ordering, type annotations
+#   - ruff format       : format (writes changes)
+#   - check-env         : validate .env has DEPLOYER_TOKEN + provider key
+#   - check-large-files : reject files >500KB (keeps the repo lean for the
+#                         hackathon; torch model weights live in the Docker
+#                         image, not the repo)
+#
+# The check-env hook is local (runs scripts/check_env.py) and only FAILS on
+# missing DEPLOYER_TOKEN - provider key absence is a warning, not a block,
+# because a teammate might be working on non-LLM parts.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-large-files
+        args: [--maxkb=500]
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: check-env
+        name: check .env (DEPLOYER_TOKEN required, provider key warned)
+        entry: python scripts/check_env.py
+        language: system
+        pass_filenames: false
+        always_run: true
