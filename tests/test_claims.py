@@ -115,9 +115,18 @@ def test_build_evidence_link_metric(monkeypatch):
     assert link.startswith("http://signoz.local/metrics-explorer?")
 
 
-def test_build_evidence_link_deployment(monkeypatch):
+def test_build_evidence_link_deployment_uses_a_route_that_exists(monkeypatch):
+    """LAW1-05 regression: the old /deployments path was fabricated.
+
+    It survived a link check because SigNoz is a SPA that returns HTTP 200 for
+    every path, including nonexistent ones - so "the link resolved" was true of
+    the status code and false of the page. Only routes confirmed present in the
+    running SigNoz's route table may be emitted.
+    """
     monkeypatch.setenv("SIGNOZ_URL", "http://signoz.local")
-    assert build_evidence_link("deployment", "v2", "t1/t2") == "http://signoz.local/deployments?version=v2"
+    link = build_evidence_link("deployment", "agent-k-rag-service", "t1/t2")
+    assert link == "http://signoz.local/traces-explorer?service=agent-k-rag-service"
+    assert "/deployments" not in link
 
 
 def test_build_evidence_link_unknown_type_raises(monkeypatch):

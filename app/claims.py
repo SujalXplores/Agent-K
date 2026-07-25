@@ -126,5 +126,11 @@ def build_evidence_link(evidence_type: str, ref: str, time_range: str) -> str:
     if evidence_type == "metric":
         return f"{base}/metrics-explorer?q={ref}&timeRange={time_range}"
     if evidence_type == "deployment":
-        return f"{base}/deployments?version={ref}"
+        # NOT /deployments - that route does not exist in SigNoz. It was invented
+        # here and went unnoticed because SigNoz is a single-page app that answers
+        # HTTP 200 for every path, so a naive status check "passed" while a human
+        # clicking the link landed on nothing. Deployment markers are spans, so the
+        # honest destination is the traces explorer scoped to the emitting service.
+        # Verified against the running SigNoz's route table on 2026-07-25.
+        return f"{base}/traces-explorer?service={ref}"
     raise ValueError(f"unknown evidence type {evidence_type!r}")
