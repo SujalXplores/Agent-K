@@ -38,6 +38,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SIGNOZ_URL: ${SIGNOZ_URL:-http://host.docker.internal:8080}
       SIGNOZ_API_KEY: ${SIGNOZ_API_KEY:-}
       # Which MCP server Agent K spawns for evidence. Empty defaults to the real
