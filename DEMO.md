@@ -11,7 +11,7 @@ Two surfaces, one backend:
 ## Start it
 
 ```bash
-./scripts/demo_up.sh
+make demo-up
 ```
 
 Idempotent — safe to re-run; skips the image build and corpus seed once done.
@@ -125,4 +125,4 @@ the verification result, addressable by incident id.
 | `/ask` 500s, investigations have 0 claims | No LLM provider key. |
 | Port 5432 already allocated | Another Postgres holds it. Remap the host port in a gitignored `docker-compose.override.yaml` — needs `ports: !override`, since Compose *appends* list fields rather than replacing them. |
 | Console scenario returns 422 | The alert envelope needs top-level `receiver` and `status`, not just `alerts`. |
-| `docker compose up -d rag-app` tries to pull | `rag-app` has no `build:` stanza; build the image first (`demo_up.sh` does). |
+| `docker compose up -d rag-app` tries to pull | `rag-app` has no `build:` stanza; build the image first (`make demo-up` does). |

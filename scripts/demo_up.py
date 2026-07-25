@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Cross-platform demo bring-up: the whole backend in one command.
 
-Replaces scripts/demo_up.sh with a Python implementation that works on Windows
-(PowerShell/cmd) and Unix alike. Python is already a hard prerequisite for this
-project, so this adds no new dependency.
+Python implementation that works on Windows (PowerShell/cmd) and Unix alike.
+Python is already a hard prerequisite for this project, so this adds no new
+dependency.
 
     python scripts/demo_up.py
 

@@ -244,20 +244,17 @@ connection and is excluded by default — see `tests/test_integration_rag.py`).
   have zero code, and the SUB-01 AI-usage disclosure is unwritten
   (that one is a disqualification risk and takes five minutes).
 - Several Phase 2-5 requirements are marked "code complete, needs human
-  verification" in `.planning/REQUIREMENTS.md` — the code and offline tests
-  are done, but nobody has yet: (a) run `/ask` against a real Groq/Cerebras/
-  Gemini key, or (b) confirmed spans/evidence links actually render in the
-  live SigNoz UI. Since the SigNoz stack and Postgres are already running in
-  this dev environment, either of these can likely be closed out quickly by
-  whoever picks this up next — it mostly needs a real `GROQ_API_KEY` in
-  `.env` and 10 minutes clicking through the SigNoz UI.
+  verification" — the code and offline tests are done, but nobody has yet:
+  (a) run `/ask` against a real Groq/Cerebras/Gemini key, or (b) confirmed
+  spans/evidence links actually render in the live SigNoz UI. Since the
+  SigNoz stack and Postgres are already running in this dev environment,
+  either of these can likely be closed out quickly by whoever picks this up
+  next — it mostly needs a real `GROQ_API_KEY` in `.env` and 10 minutes
+  clicking through the SigNoz UI.
 - The `landing/` directory is a separate Next.js marketing site (for the
   hackathon's warm-up blog / landing page), unrelated to Agent K's core
   submission requirements — don't confuse it with the actual product.
 
 ## 9. Where to look next
 
-- Full requirement-by-requirement status: [.planning/REQUIREMENTS.md](.planning/REQUIREMENTS.md)
-- Phase-by-phase plan and what's left: [.planning/ROADMAP.md](.planning/ROADMAP.md)
-- Session state / handoff notes: [.planning/STATE.md](.planning/STATE.md)
 - SigNoz install/troubleshooting detail: [SIGNOZ-RUNBOOK.md](SIGNOZ-RUNBOOK.md)
