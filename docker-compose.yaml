@@ -82,6 +82,11 @@ services:
       # unlike the RAG app's /admin/flags, there is no unauthenticated mode here.
       DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:?DEPLOYER_TOKEN must be set}
       ROLLBACK_COMPOSE_FILE: /workspace/docker-compose.yaml
+      # The compose project the running stack belongs to. Must match the host's
+      # project (compose defaults it to the repo dir name, e.g. "agent-k") or the
+      # sidecar recreates under project "workspace" and collides with the existing
+      # rag-app container_name. Override if you run the stack under a custom name.
+      ROLLBACK_COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-agent-k}
       ROLLBACK_TARGET_SERVICE: rag-app
       ROLLBACK_TARGET_CONTAINER: rag-app
       ROLLBACK_KNOWN_GOOD_TAG: ${ROLLBACK_KNOWN_GOOD_TAG:-v1-good}

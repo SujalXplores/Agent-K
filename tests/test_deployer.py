@@ -174,6 +174,31 @@ def test_uses_force_recreate_and_never_restart(client, fake_run):
     assert "restart" not in compose_argv
 
 
+def test_compose_project_is_pinned_when_configured(client, fake_run, monkeypatch):
+    """`-p <project>` pins the re-create to the SAME compose project the stack runs
+    under. Without it, compose defaults the project to the sidecar's own working
+    dir ("workspace"), tries to CREATE a new container on the service's fixed
+    container_name, and collides with the running one - the rollback fails compose
+    exit 1. The flag must sit before `up`, as a compose top-level option."""
+    monkeypatch.setattr(deployer_main, "COMPOSE_PROJECT", "agent-k")
+    _post(client)
+    compose_argv = [c for c in fake_run if "compose" in c][0]
+    assert "-p" in compose_argv
+    assert compose_argv[compose_argv.index("-p") + 1] == "agent-k"
+    assert compose_argv.index("-p") < compose_argv.index("up")
+
+
+def test_no_compose_project_flag_when_unconfigured(client, fake_run, monkeypatch):
+    """A blank project leaves `-p` out entirely rather than emitting `-p ''`, which
+    compose would reject - preserving the bare-argv behaviour for a stack whose
+    project name already matches the default."""
+    monkeypatch.setattr(deployer_main, "COMPOSE_PROJECT", "")
+    _post(client)
+    compose_argv = [c for c in fake_run if "compose" in c][0]
+    assert "-p" not in compose_argv
+    assert compose_argv[:2] == ["docker", "compose"]
+
+
 def test_known_good_tag_is_pinned_before_recreate(client, fake_run, _no_real_file_writes):
     _post(client)
     assert _no_real_file_writes == [deployer_main.KNOWN_GOOD_TAG]
